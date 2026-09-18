@@ -1,34 +1,18 @@
-# Python Project — Claude Guide
+# Colorado River Viz — Claude Guide
 
-## Template Setup (delete this entire section once the new repo is stood up)
-
-This repo is a generic starting point, not a finished project. Before doing real
-work in a fresh copy of it:
-
-1. **Rename the package.** Search the repo for `myproject` — it appears in
-   `src/myproject/`, `pyproject.toml` (`name` and `packages`), and the imports in
-   `tests/test_utils.py`, `scripts/hello_world.py`, and `notebooks/hello_world.ipynb`.
-   Rename all of these to match the real project.
-2. **Decide on the `hello_world` example.** The example script, notebook, and test
-   are a working demo of the package/notebook/test pattern — not required
-   functionality. Delete them once you have real code, or keep them as a reference
-   if that's useful.
-3. **Update the title/description** in `README.md` and this file to describe the
-   actual project.
-4. **Regenerate `uv.lock`** with `uv sync --all-extras` after any dependency changes.
-5. **Delete this entire "Template Setup" section** once the above is done and the
-   new repository is up and running. Everything below this section is permanent
-   project guidance and should stay.
+Data visualization and analytics for the Colorado River: flow rates, Lake Powell
+and Lake Mead reservoir levels, and snowpack across the Colorado Plateau and
+feeder mountain ranges.
 
 ## Project Layout
 
 ```
-your-project/
-├── data/          # Raw and processed data files (large files are gitignored)
-├── notebooks/     # Jupyter notebooks for exploration and analysis
-├── scripts/       # Standalone Python scripts for running analyses
-├── src/myproject/ # The importable Python package — shared functions go here
-└── tests/         # Automated tests for the src/ package
+colorado-river-viz/
+├── data/                      # Raw and processed data files (large files are gitignored)
+├── notebooks/                 # Jupyter notebooks for exploration and analysis
+├── scripts/                   # Standalone Python scripts for running analyses
+├── src/colorado_river_viz/    # The importable Python package — shared functions go here
+└── tests/                     # Automated tests for the src/ package
 ```
 
 ## Running Things
@@ -70,17 +54,17 @@ installed, so the environment is reproducible on any machine.
 
 ## Adding a New Function to the Package
 
-1. Add your function to `src/myproject/utils.py` (or a new file in `src/myproject/`)
-2. Export it in `src/myproject/__init__.py` so it's importable as `from myproject import my_function`
-3. Import it in notebooks or scripts: `from myproject import my_function`
+1. Add your function to `src/colorado_river_viz/utils.py` (or a new file in `src/colorado_river_viz/`)
+2. Export it in `src/colorado_river_viz/__init__.py` so it's importable as `from colorado_river_viz import my_function`
+3. Import it in notebooks or scripts: `from colorado_river_viz import my_function`
 
 ## What Is Hatchling?
 
-Hatchling is the build tool that turns the `src/myproject/` folder into an
+Hatchling is the build tool that turns the `src/colorado_river_viz/` folder into an
 installable Python package. When you run `uv sync`, UV uses Hatchling to install
-`myproject` into the environment so that `import myproject` works from anywhere —
+`colorado_river_viz` into the environment so that `import colorado_river_viz` works from anywhere —
 notebooks, scripts, or tests — without needing to juggle relative paths like
-`../../src/myproject/utils.py`. You don't interact with Hatchling directly; it
+`../../src/colorado_river_viz/utils.py`. You don't interact with Hatchling directly; it
 runs automatically in the background.
 
 ## What Is Ruff?

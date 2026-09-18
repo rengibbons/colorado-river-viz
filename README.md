@@ -1,6 +1,8 @@
-# Python Project Template
+# Colorado River Viz
 
-A Python project template for reproducible, easy-to-maintain projects.
+Data visualization and analytics for the Colorado River: flow rates, Lake Powell
+and Lake Mead reservoir levels, and snowpack across the Colorado Plateau and
+feeder mountain ranges.
 
 ---
 
@@ -13,7 +15,7 @@ A Python project template for reproducible, easy-to-maintain projects.
 5. [Install Dependencies](#5-install-dependencies)
 6. [Install Pre-Commit Hooks](#6-install-pre-commit-hooks)
 7. [Launch JupyterLab](#7-launch-jupyterlab)
-8. [Run the Example Script](#8-run-the-example-script)
+8. [Explore the Notebook](#8-explore-the-notebook)
 9. [Run Tests](#9-run-tests)
 10. [Adding New Packages](#10-adding-new-packages)
 11. [Project Layout](#11-project-layout)
@@ -135,21 +137,22 @@ That's it — the hooks will now run silently in the background every time you c
 uv run jupyter lab
 ```
 
-JupyterLab will open in your browser. Navigate to `notebooks/hello_world.ipynb`
-and run the cells top-to-bottom with **Shift + Enter**.
+JupyterLab will open in your browser. Navigate to
+`notebooks/data_sources_first_visuals.ipynb` and run the cells top-to-bottom
+with **Shift + Enter**.
 
-Or simply open the notebook from the left panel of VS Code. Select the kernel from the upper right of the notebook. Choose "Select a Python environment" From the upper right of the notebook and choose myproject. (`.venv/bin/python`)
+Or simply open the notebook from the left panel of VS Code. Select the kernel from the upper right of the notebook. Choose "Select a Python environment" From the upper right of the notebook and choose colorado_river_viz. (`.venv/bin/python`)
 
 ---
 
-## 8. Run the Example Script
+## 8. Explore the Notebook
 
 ```bash
-uv run python scripts/hello_world.py
+uv run jupyter lab notebooks/data_sources_first_visuals.ipynb
 ```
 
-This imports a function from the `myproject` package, generates some sample data,
-and saves a histogram to `hello_world.png`.
+This notebook pulls sample data from the USGS, Bureau of Reclamation, and USDA
+NRCS APIs described below and plots each series so you can inspect it.
 
 ---
 
@@ -159,7 +162,7 @@ and saves a histogram to `hello_world.png`.
 uv run pytest
 ```
 
-Tests live in the `tests/` folder. They verify that the functions in `src/myproject/`
+Tests live in the `tests/` folder. They verify that the functions in `src/colorado_river_viz/`
 work as expected. You don't need to write tests immediately, but the setup is ready when you want to.
 
 ---
@@ -196,24 +199,23 @@ get the exact same package versions.
 ## 11. Project Layout
 
 ```
-your-project/
+colorado-river-viz/
 │
 ├── data/                   # Data files. Large files are gitignored — store
 │                           # big datasets here without worrying about git.
 │
 ├── notebooks/              # Jupyter notebooks for exploration and analysis.
-│   └── hello_world.ipynb
+│   └── data_sources_first_visuals.ipynb
 │
 ├── scripts/                # Standalone Python scripts for running analyses.
-│   └── hello_world.py
 │
 ├── src/
-│   └── myproject/          # The importable Python package.
-│       ├── __init__.py     # Makes `from myproject import ...` work.
-│       └── utils.py        # Shared functions used across notebooks and scripts.
+│   └── colorado_river_viz/          # The importable Python package.
+│       ├── __init__.py     # Makes `from colorado_river_viz import ...` work.
+│       └── data_sources.py # REST clients for USGS, RISE, and AWDB/SNOTEL data.
 │
-├── tests/                  # Automated tests for the myproject package.
-│   └── test_utils.py
+├── tests/                  # Automated tests for the colorado_river_viz package.
+│   └── test_data_sources.py
 │
 ├── .gitignore              # Tells git which files to ignore (e.g., .venv/, large data files).
 ├── .pre-commit-config.yaml # Configuration for pre-commit hooks.
@@ -223,13 +225,13 @@ your-project/
 └── uv.lock                 # Exact package versions — always commit this file.
 ```
 
-**The key idea behind `src/myproject/`:** Instead of copying functions between
+**The key idea behind `src/colorado_river_viz/`:** Instead of copying functions between
 notebooks or using messy relative imports (`../../utils.py`), any shared code
-lives in `src/myproject/`. UV installs it as a proper package, so you can write
-`from myproject import my_function` from anywhere — a notebook, a script, or a
+lives in `src/colorado_river_viz/`. UV installs it as a proper package, so you can write
+`from colorado_river_viz import my_function` from anywhere — a notebook, a script, or a
 test — and it just works.
 
 > **What is Hatchling?** You'll see `hatchling` mentioned in `pyproject.toml`.
-> It's the build tool that makes `src/myproject/` installable as a package.
+> It's the build tool that makes `src/colorado_river_viz/` installable as a package.
 > When you run `uv sync`, UV uses Hatchling behind the scenes to register the
-> package so that `import myproject` works. You never interact with it directly.
+> package so that `import colorado_river_viz` works. You never interact with it directly.
