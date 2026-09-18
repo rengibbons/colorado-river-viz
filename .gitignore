@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment (UV creates this)
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Tests
+.pytest_cache/
+.coverage
+
+# Ruff
+.ruff_cache/
+
+# Large data files — commit small reference files, but keep big ones local
+*.hdf5
+*.h5
+*.npy
+*.npz
+*.mat
+*.pkl
+*.parquet
+
+# Generated outputs
+hello_world.png
