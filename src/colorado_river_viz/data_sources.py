@@ -66,8 +66,9 @@ def fetch_rise_time_series(catalog_item_id: int, date_range: DateRange) -> pd.Da
     """
     params: dict[str, str | int] = {
         "itemId": catalog_item_id,
-        "after": date_range.start.isoformat(),
-        "before": date_range.end.isoformat(),
+        "dateTime[after]": date_range.start.isoformat(),
+        "dateTime[before]": date_range.end.isoformat(),
+        "itemsPerPage": 10000,
     }
     response = requests.get(
         RISE_RESULT_URL, params=params, timeout=REQUEST_TIMEOUT_SECONDS
