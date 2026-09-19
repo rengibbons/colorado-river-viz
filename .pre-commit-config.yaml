@@ -25,4 +25,4 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies:
-          ["numpy>=2.0", "pandas-stubs", "requests", "plotly", "pydantic-settings", "scipy", "pytest", "types-openpyxl"]
+          ["numpy>=2.0", "pandas-stubs", "requests", "plotly", "pydantic-settings", "scipy-stubs", "pytest", "types-openpyxl"]
