@@ -30,17 +30,15 @@ floor.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
+from colorado_river_viz.constants import REPO_ROOT
 from colorado_river_viz.reservoirs import ReservoirProfile
 
 ACRES_TO_SQUARE_FEET = 43_560
 FEET_TO_MILES = 1 / 5_280
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
 AREA_CAPACITY_DATA_DIR = REPO_ROOT / "data" / "reservoir_area_capacity"
 
 _AREA_CAPACITY_TABLE_FILENAMES = {
