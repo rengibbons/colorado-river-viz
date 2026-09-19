@@ -1,18 +1,19 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.0
+    rev: v0.16.8
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
       - id: ruff-format
 
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.8.1
+    rev: 0.9.1
     hooks:
       - id: nbstripout
+        args: [--keep-id]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -20,7 +21,8 @@ repos:
       - id: check-toml
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
+    rev: v2.3.1
     hooks:
       - id: mypy
-        additional_dependencies: ["numpy>=2.0", "pandas-stubs"]
+        additional_dependencies:
+          ["numpy>=2.0", "pandas-stubs", "requests", "plotly", "pydantic-settings", "scipy", "pytest"]

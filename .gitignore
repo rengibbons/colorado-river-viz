@@ -34,5 +34,8 @@ build/
 *.pkl
 *.parquet
 
+# Local data cache (rebuilt with scripts/build_cache.py)
+data/cache/
+
 # Generated outputs
 hello_world.png
