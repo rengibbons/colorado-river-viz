@@ -7,9 +7,10 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 import pandas as pd
@@ -41,6 +42,8 @@ _USGS_APPROVALS: dict[str, Approval] = {
     "Provisional": "provisional",
 }
 RISE_RESULT_URL = "https://data.usbr.gov/rise/api/result"
+RISE_PAGE_SIZE = 10_000  # the API silently caps larger requests at this
+RISE_LOCAL_TIMEZONE = "America/Phoenix"
 AWDB_DATA_URL = "https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data"
 
 REQUEST_TIMEOUT_SECONDS = 30
@@ -162,28 +165,87 @@ def fetch_usgs_daily_canonical(
     )
 
 
+def _iter_rise_pages(
+    client: HttpClient, catalog_item_id: int, date_range: DateRange
+) -> Iterator[list[dict[str, Any]]]:
+    """Yield each page of a RISE item's results, oldest first.
+
+    RISE caps pages at 10,000 rows, so a full daily record takes several pages.
+    Each page is its own request, so a timeout is retried for that page only.
+    RISE ignores filter names it doesn't recognize rather than rejecting them,
+    so these parameter names matter.
+    """
+    params: dict[str, str | int] = {
+        "itemId": catalog_item_id,
+        "dateTime[after]": date_range.start.isoformat(),
+        # Daily values are stamped 07:00Z, so "before the next day" includes the
+        # end date itself.
+        "dateTime[before]": (date_range.end + timedelta(days=1)).isoformat(),
+        "order[dateTime]": "ASC",
+        "itemsPerPage": RISE_PAGE_SIZE,
+    }
+    page = 1
+    page_count = 1
+    while page <= page_count:
+        payload = get_json(client, RISE_RESULT_URL, {**params, "page": page})
+        page_count = math.ceil(payload["meta"]["totalItems"] / RISE_PAGE_SIZE)
+        yield [row["attributes"] for row in payload["data"]]
+        page += 1
+
+
+def _rise_records(
+    client: HttpClient, catalog_item_id: int, date_range: DateRange
+) -> pd.DataFrame:
+    records = [
+        record
+        for page in _iter_rise_pages(client, catalog_item_id, date_range)
+        for record in page
+    ]
+    return pd.DataFrame.from_records(records, columns=["dateTime", "result"])
+
+
 def fetch_rise_time_series(catalog_item_id: int, date_range: DateRange) -> pd.DataFrame:
     """Fetch a daily time series from Reclamation's RISE API for one catalog item.
+
+    Returns every result in ``date_range`` (inclusive), indexed by the UTC
+    ``dateTime`` stamp and sorted, with one column ``result``.
 
     Source: https://data.usbr.gov/rise-api
     Example catalog items: 508 (Lake Powell elevation, ft),
     6123 (Lake Mead elevation, ft)
     """
-    params: dict[str, str | int] = {
-        "itemId": catalog_item_id,
-        "dateTime[after]": date_range.start.isoformat(),
-        "dateTime[before]": date_range.end.isoformat(),
-        "itemsPerPage": 10000,
-    }
-    response = requests.get(
-        RISE_RESULT_URL, params=params, timeout=REQUEST_TIMEOUT_SECONDS
-    )
-    response.raise_for_status()
-    records = [row["attributes"] for row in response.json()["data"]]
-    frame = pd.DataFrame.from_records(records)
+    frame = _rise_records(_default_client(DataSource.RISE), catalog_item_id, date_range)
     frame["dateTime"] = pd.to_datetime(frame["dateTime"])
     frame["result"] = pd.to_numeric(frame["result"])
     return frame.sort_values("dateTime").set_index("dateTime")[["result"]]
+
+
+def fetch_rise_daily_canonical(
+    client: HttpClient,
+    series_id: str,
+    catalog_item_id: int,
+    unit: Unit,
+    date_range: DateRange,
+) -> pd.DataFrame:
+    """Fetch a RISE daily series in the canonical cache schema (design §4).
+
+    RISE stamps daily values at 07:00Z, which is midnight in Arizona (UTC-7, no
+    daylight saving), so each stamp is converted to America/Phoenix before
+    taking its date.
+    """
+    frame = _rise_records(client, catalog_item_id, date_range)
+    if frame.empty:
+        return empty_canonical_frame()
+    local_times = pd.DatetimeIndex(
+        pd.to_datetime(frame["dateTime"], utc=True)
+    ).tz_convert(RISE_LOCAL_TIMEZONE)
+    return canonical_frame(
+        series_id=series_id,
+        dates=local_times.tz_localize(None),
+        values=pd.to_numeric(frame["result"]),
+        unit=unit,
+        approval="unknown",
+    )
 
 
 def fetch_snotel_daily_values(
