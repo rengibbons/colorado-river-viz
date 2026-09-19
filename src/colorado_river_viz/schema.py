@@ -6,6 +6,7 @@ works directly; the cache stores it as parquet ``date32``.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Literal, get_args
 
 import pandas as pd
@@ -64,4 +65,31 @@ def empty_canonical_frame() -> pd.DataFrame:
             "unit": pd.Series(dtype="string"),
             "approval": pd.Series(dtype="string"),
         }
+    )
+
+
+AnnualStatus = Literal["final", "provisional"]
+
+ANNUAL_COLUMNS = ("series_id", "water_year", "value_af", "status")
+
+
+def annual_frame(
+    series_id: str,
+    water_years: Sequence[int],
+    values_af: Sequence[float],
+    statuses: Sequence[AnnualStatus],
+) -> pd.DataFrame:
+    """Assemble an annual published series (e.g. natural flow), sorted by year."""
+    frame = pd.DataFrame(
+        {
+            "series_id": series_id,
+            "water_year": pd.Series(water_years, dtype="int16"),
+            "value_af": pd.Series(values_af, dtype="float64"),
+            "status": pd.Series(statuses, dtype="string"),
+        }
+    )
+    if frame["water_year"].duplicated().any():
+        raise UnexpectedSourceFormatError(f"{series_id}: duplicate water years")
+    return frame.sort_values("water_year", ignore_index=True).astype(
+        {"series_id": "category"}
     )
