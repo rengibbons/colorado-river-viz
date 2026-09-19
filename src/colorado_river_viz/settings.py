@@ -24,3 +24,4 @@ class Settings(BaseSettings):
     usgs_api_key: SecretStr | None = None
     request_timeout_seconds: float = 60.0
     max_retries: int = 5
+    retry_backoff_factor: float = 1.0
