@@ -18,9 +18,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+import pandas as pd
 import plotly.graph_objects as go
 
 from colorado_river_viz.constants import HIGHLIGHT_YEARS, HighlightYears
+from colorado_river_viz.water_year import day_of_water_year, water_year_bounds
 
 Theme = Literal["light", "dark"]
 
@@ -40,6 +42,7 @@ class Palette:
     text_secondary: str
     gridline: str
     baseline: str
+    band_fill: str
     low: str
     high: str
 
@@ -51,6 +54,7 @@ PALETTES: dict[Theme, Palette] = {
         text_secondary="#52514e",
         gridline="#e1e0d9",
         baseline="#c3c2b7",
+        band_fill="rgba(195,194,183,0.25)",
         low="#eb6834",
         high="#2a78d6",
     ),
@@ -60,6 +64,7 @@ PALETTES: dict[Theme, Palette] = {
         text_secondary="#c3c2b7",
         gridline="#2c2c2a",
         baseline="#383835",
+        band_fill="rgba(56,56,53,0.35)",
         low="#d95926",
         high="#3987e5",
     ),
@@ -124,6 +129,20 @@ def layout_template(theme: Theme = "light") -> go.layout.Template:
             legend={"font": {"color": palette.text_secondary}},
         )
     )
+
+
+def day_of_water_year_ticks() -> tuple[list[int], list[str]]:
+    """Month-start tick positions and labels for a day-of-water-year x-axis.
+
+    Oct 1 = day 1. Computed from a non-leap reference year, so the ticks land
+    a day early in the second half of a leap water year -- close enough for an
+    axis label.
+    """
+    bounds = water_year_bounds(2025)
+    month_starts = pd.date_range(bounds.start, bounds.end, freq="MS")
+    days = day_of_water_year(pd.DatetimeIndex(month_starts))
+    labels = [pd.Timestamp(d).strftime("%b") for d in month_starts]
+    return list(days), labels
 
 
 def direct_label(
