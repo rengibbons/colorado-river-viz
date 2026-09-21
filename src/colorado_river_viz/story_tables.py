@@ -14,6 +14,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from colorado_river_viz.cache import (
@@ -23,13 +24,14 @@ from colorado_river_viz.cache import (
     load_snotel_medians,
 )
 from colorado_river_viz.catalog import (
+    CISCO,
     MEKO_RECON,
     NATURAL_FLOW,
     POWELL_UNREGULATED_INFLOW,
     snotel_index_series,
 )
 from colorado_river_viz.constants import AF_PER_MAF, NORMALS_PERIOD, YearSpan
-from colorado_river_viz.metrics.flow import seasonal_volume
+from colorado_river_viz.metrics.flow import center_of_volume, seasonal_volume
 from colorado_river_viz.metrics.natural_flow_bridge import apply_bridge, fit_bridge
 from colorado_river_viz.metrics.snow import (
     annual_peaks,
@@ -40,8 +42,11 @@ from colorado_river_viz.metrics.snow import (
     station_timing,
     to_wide,
 )
+from colorado_river_viz.water_year import day_of_water_year, water_year
 
 PALEO_ROLLING_WINDOW_YEARS = 20
+CISCO_ENVELOPE_YEARS = YearSpan(1914, 1962)
+"""Before most upstream storage (design §6.6)."""
 
 
 def _index_wide_swe(cache_dir: Path, stations: pd.DataFrame) -> pd.DataFrame:
@@ -211,3 +216,78 @@ def paleo_supply(cache_dir: Path) -> pd.DataFrame:
             ).mean(),
         }
     )
+
+
+def _day_of_water_year_of_date(value: pd.Timestamp) -> float:
+    if pd.isna(value):
+        return np.nan
+    return float(day_of_water_year(value.date()))
+
+
+def timing_annual(cache_dir: Path, snow_annual_table: pd.DataFrame) -> pd.DataFrame:
+    """One row per water year: snow peak/melt-out day and Cisco's
+    center-of-volume day, all as day of water year (design §6.6).
+
+    ``snow_annual_table`` is ``snow_annual()``'s output. Cisco's
+    center-of-volume day only counts complete water years.
+    """
+    cisco_daily = load_daily(cache_dir, CISCO)
+    cisco_cov = center_of_volume(cisco_daily)
+    cisco_cov = cisco_cov.loc[
+        cisco_cov["is_complete"], ["water_year", "center_of_volume_doy"]
+    ].rename(columns={"center_of_volume_doy": "cisco_center_of_volume_doy"})
+
+    snow_timing = pd.DataFrame(
+        {
+            "water_year": snow_annual_table["water_year"],
+            "snow_peak_doy": snow_annual_table["station_peak_date_median"].map(
+                _day_of_water_year_of_date
+            ),
+            "snow_meltout_doy": snow_annual_table["station_meltout_date_median"].map(
+                _day_of_water_year_of_date
+            ),
+        }
+    )
+    return snow_timing.merge(cisco_cov, on="water_year", how="outer").sort_values(
+        "water_year", ignore_index=True
+    )
+
+
+def cisco_hydrograph(
+    cache_dir: Path, envelope_years: YearSpan = CISCO_ENVELOPE_YEARS
+) -> pd.DataFrame:
+    """Cisco daily cfs in the same water_year/day_of_water_year layout as
+    ``snow_index_daily()``, plus the ``envelope_years`` per-day median and
+    10th/90th percentile envelope (design §6.6).
+    """
+    daily = load_daily(cache_dir, CISCO)
+    dates = pd.DatetimeIndex(daily["date"])
+    daily = daily.assign(
+        water_year=water_year(dates),
+        day_of_water_year=day_of_water_year(dates),
+    )
+
+    in_envelope = daily["water_year"].between(envelope_years.first, envelope_years.last)
+    baseline = daily[in_envelope]
+    grouped = baseline.groupby("day_of_water_year")["value"]
+    envelope = pd.DataFrame(
+        {
+            "median_cfs": grouped.median(),
+            "p10_cfs": grouped.quantile(0.10),
+            "p90_cfs": grouped.quantile(0.90),
+        }
+    ).reset_index()
+
+    return daily.merge(envelope, on="day_of_water_year", how="left").rename(
+        columns={"value": "cfs"}
+    )[
+        [
+            "date",
+            "water_year",
+            "day_of_water_year",
+            "cfs",
+            "median_cfs",
+            "p10_cfs",
+            "p90_cfs",
+        ]
+    ]

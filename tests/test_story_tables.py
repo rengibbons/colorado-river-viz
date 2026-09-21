@@ -8,6 +8,7 @@ import pytest
 
 from colorado_river_viz.cache import write_parquet_atomic
 from colorado_river_viz.catalog import (
+    CISCO,
     MEKO_RECON,
     NATURAL_FLOW,
     POWELL_UNREGULATED_INFLOW,
@@ -19,11 +20,13 @@ from colorado_river_viz.metrics.flow import water_year_totals
 from colorado_river_viz.schema import annual_frame, canonical_frame
 from colorado_river_viz.story_tables import (
     annual_supply,
+    cisco_hydrograph,
     paleo_supply,
     runoff_vs_snow,
     snow_annual,
     snow_index_daily,
     snow_index_envelope,
+    timing_annual,
 )
 from colorado_river_viz.water_year import water_year_bounds
 
@@ -287,3 +290,93 @@ def test_paleo_supply_has_a_twenty_year_rolling_mean(cache_dir: Path) -> None:
     assert list(paleo.columns) == ["water_year", "recon_maf", "recon_20yr_mean_maf"]
     assert paleo["recon_20yr_mean_maf"].isna().sum() == 19
     assert paleo["recon_20yr_mean_maf"].iloc[19] == pytest.approx(sum(values[:20]) / 20)
+
+
+def _rising_flow_daily(wy: int, through_day: int | None = None) -> pd.DataFrame:
+    """A hydrograph that rises then falls, so its center of volume is well inside
+    the year rather than landing on an edge."""
+    bounds = water_year_bounds(wy)
+    dates = pd.date_range(bounds.start, bounds.end, freq="D")
+    if through_day is not None:
+        dates = dates[:through_day]
+    doy = pd.Series(range(1, len(dates) + 1), index=dates)
+    values = 1000 + 4000 * doy / len(dates)
+    return pd.DataFrame({"date": dates, "value": values})
+
+
+def _write_cisco_cache(cache_dir: Path, years: range, incomplete: set[int]) -> None:
+    frames = [
+        _rising_flow_daily(wy, through_day=50 if wy in incomplete else None)
+        for wy in years
+    ]
+    daily = pd.concat(frames, ignore_index=True)
+    frame = canonical_frame(
+        CISCO.series_id,
+        pd.DatetimeIndex(daily["date"]),
+        daily["value"],
+        "cfs",
+        "unknown",
+    )
+    write_parquet_atomic(
+        frame, cache_dir / "raw" / "usgs" / f"{CISCO.series_id}.parquet"
+    )
+
+
+def test_timing_annual_gives_expected_days_and_excludes_incomplete_cisco_years(
+    cache_dir: Path,
+) -> None:
+    _write_cisco_cache(cache_dir, range(2020, 2023), incomplete={2022})
+    snow_annual_table = pd.DataFrame(
+        {
+            "water_year": [2020, 2021, 2022],
+            "station_peak_date_median": [
+                pd.Timestamp("2020-03-15"),
+                pd.Timestamp("2021-03-20"),
+                pd.NaT,
+            ],
+            "station_meltout_date_median": [
+                pd.Timestamp("2020-06-01"),
+                pd.Timestamp("2021-06-05"),
+                pd.NaT,
+            ],
+        }
+    )
+
+    timing = timing_annual(cache_dir, snow_annual_table)
+
+    assert list(timing.columns) == [
+        "water_year",
+        "snow_peak_doy",
+        "snow_meltout_doy",
+        "cisco_center_of_volume_doy",
+    ]
+    row_2020 = timing[timing["water_year"] == 2020].iloc[0]
+    # Oct 1 -> Mar 15 / Jun 1; WY2020 is a leap water year, hence the +1.
+    assert row_2020["snow_peak_doy"] == pytest.approx(167.0)
+    assert row_2020["snow_meltout_doy"] == pytest.approx(245.0)
+    assert not pd.isna(row_2020["cisco_center_of_volume_doy"])
+
+    row_2022 = timing[timing["water_year"] == 2022].iloc[0]
+    assert pd.isna(row_2022["snow_peak_doy"])
+    assert pd.isna(row_2022["cisco_center_of_volume_doy"])  # incomplete year excluded
+
+
+def test_cisco_hydrograph_has_an_envelope_from_the_baseline_years(
+    cache_dir: Path,
+) -> None:
+    _write_cisco_cache(cache_dir, range(1914, 1965), incomplete=set())
+
+    hydro = cisco_hydrograph(cache_dir)
+
+    assert list(hydro.columns) == [
+        "date",
+        "water_year",
+        "day_of_water_year",
+        "cfs",
+        "median_cfs",
+        "p10_cfs",
+        "p90_cfs",
+    ]
+    assert hydro["median_cfs"].notna().all()
+    post_baseline = hydro[hydro["water_year"] == 1964]
+    assert post_baseline["median_cfs"].notna().all()
