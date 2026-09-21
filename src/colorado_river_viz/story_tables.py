@@ -11,14 +11,26 @@ envelope (our own index's 1991-2020 daily median), and ``peak_pct_of_median``
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
 
-from colorado_river_viz.cache import load_daily, load_snotel_daily, load_snotel_medians
-from colorado_river_viz.catalog import POWELL_UNREGULATED_INFLOW, snotel_index_series
-from colorado_river_viz.constants import NORMALS_PERIOD, YearSpan
+from colorado_river_viz.cache import (
+    load_annual,
+    load_daily,
+    load_snotel_daily,
+    load_snotel_medians,
+)
+from colorado_river_viz.catalog import (
+    MEKO_RECON,
+    NATURAL_FLOW,
+    POWELL_UNREGULATED_INFLOW,
+    snotel_index_series,
+)
+from colorado_river_viz.constants import AF_PER_MAF, NORMALS_PERIOD, YearSpan
 from colorado_river_viz.metrics.flow import seasonal_volume
+from colorado_river_viz.metrics.natural_flow_bridge import apply_bridge, fit_bridge
 from colorado_river_viz.metrics.snow import (
     annual_peaks,
     april_first,
@@ -28,6 +40,8 @@ from colorado_river_viz.metrics.snow import (
     station_timing,
     to_wide,
 )
+
+PALEO_ROLLING_WINDOW_YEARS = 20
 
 
 def _index_wide_swe(cache_dir: Path, stations: pd.DataFrame) -> pd.DataFrame:
@@ -138,3 +152,62 @@ def runoff_vs_snow(
     ].mean()
     merged["runoff_efficiency_index"] = 100 * merged["runoff_efficiency"] / normal_mean
     return merged.reset_index(drop=True)
+
+
+_STATUS_TO_KIND = {"final": "published_final", "provisional": "published_provisional"}
+
+
+def annual_supply(cache_dir: Path, today: date | None = None) -> pd.DataFrame:
+    """Natural flow by water year: published where available, bridge-estimated
+    otherwise (design §6.2, decision 0014).
+
+    Columns: ``water_year``, ``natural_flow_maf``, ``kind`` (``"published_final"``,
+    ``"published_provisional"``, or ``"estimated"``), ``estimate_low_maf``,
+    ``estimate_high_maf`` (estimated rows only), ``through_date`` (estimated rows
+    only, for a "through <date>" label when short of Sep 30).
+    """
+    natural = load_annual(cache_dir, NATURAL_FLOW)
+    unregulated_daily = load_daily(cache_dir, POWELL_UNREGULATED_INFLOW)
+    fit = fit_bridge(natural, unregulated_daily)
+    estimated = apply_bridge(
+        natural, unregulated_daily, fit, today if today is not None else date.today()
+    )
+    estimated["kind"] = "estimated"
+
+    published = pd.DataFrame(
+        {
+            "water_year": natural["water_year"],
+            "natural_flow_maf": natural["value_af"] / AF_PER_MAF,
+            "kind": natural["status"].map(_STATUS_TO_KIND),
+            "estimate_low_maf": pd.NA,
+            "estimate_high_maf": pd.NA,
+            "through_date": pd.NaT,
+        }
+    )
+    columns = [
+        "water_year",
+        "natural_flow_maf",
+        "kind",
+        "estimate_low_maf",
+        "estimate_high_maf",
+        "through_date",
+    ]
+    return pd.concat([published, estimated[columns]], ignore_index=True).sort_values(
+        "water_year", ignore_index=True
+    )
+
+
+def paleo_supply(cache_dir: Path) -> pd.DataFrame:
+    """Meko et al. (2007) tree-ring reconstruction and its 20-year rolling mean
+    (design §6.2), water year 762-2005."""
+    meko = load_annual(cache_dir, MEKO_RECON)
+    recon_maf = meko["value_af"] / AF_PER_MAF
+    return pd.DataFrame(
+        {
+            "water_year": meko["water_year"],
+            "recon_maf": recon_maf,
+            "recon_20yr_mean_maf": recon_maf.rolling(
+                PALEO_ROLLING_WINDOW_YEARS, min_periods=PALEO_ROLLING_WINDOW_YEARS
+            ).mean(),
+        }
+    )

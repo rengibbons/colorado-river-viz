@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -7,18 +8,24 @@ import pytest
 
 from colorado_river_viz.cache import write_parquet_atomic
 from colorado_river_viz.catalog import (
+    MEKO_RECON,
+    NATURAL_FLOW,
     POWELL_UNREGULATED_INFLOW,
     SNOTEL_MEDIANS_SERIES_ID,
     snotel_index_series,
 )
-from colorado_river_viz.constants import YearSpan
-from colorado_river_viz.schema import canonical_frame
+from colorado_river_viz.constants import AF_PER_MAF, YearSpan
+from colorado_river_viz.metrics.flow import water_year_totals
+from colorado_river_viz.schema import annual_frame, canonical_frame
 from colorado_river_viz.story_tables import (
+    annual_supply,
+    paleo_supply,
     runoff_vs_snow,
     snow_annual,
     snow_index_daily,
     snow_index_envelope,
 )
+from colorado_river_viz.water_year import water_year_bounds
 
 WATER_YEARS = (2024, 2025)
 
@@ -204,3 +211,79 @@ def test_runoff_vs_snow_computes_efficiency_against_the_normal_mean(
     ]
     assert runoff["runoff_efficiency_index"].tolist() == pytest.approx([100.0, 100.0])
     assert runoff.to_json(orient="records")
+
+
+def _constant_flow_daily(cfs_by_wy: dict[int, float]) -> pd.DataFrame:
+    frames = []
+    for wy, cfs in cfs_by_wy.items():
+        bounds = water_year_bounds(wy)
+        dates = pd.date_range(bounds.start, bounds.end, freq="D")
+        frames.append(pd.DataFrame({"date": dates, "value": cfs}))
+    return pd.concat(frames, ignore_index=True)
+
+
+def test_annual_supply_estimates_missing_years_and_keeps_published_ones(
+    cache_dir: Path,
+) -> None:
+    unregulated = _constant_flow_daily({wy: 4000.0 for wy in range(1964, 2023)})
+    write_parquet_atomic(
+        canonical_frame(
+            POWELL_UNREGULATED_INFLOW.series_id,
+            pd.DatetimeIndex(unregulated["date"]),
+            unregulated["value"],
+            "cfs",
+            "unknown",
+        ),
+        cache_dir / "raw" / "rise" / f"{POWELL_UNREGULATED_INFLOW.series_id}.parquet",
+    )
+    totals = water_year_totals(unregulated)
+    published_years = totals[totals["water_year"] <= 2020]
+    natural = annual_frame(
+        NATURAL_FLOW.series_id,
+        published_years["water_year"].tolist(),
+        (published_years["total_maf"] * AF_PER_MAF).tolist(),
+        ["final"] * len(published_years),
+    )
+    write_parquet_atomic(
+        natural, cache_dir / "published" / f"{NATURAL_FLOW.series_id}.parquet"
+    )
+
+    supply = annual_supply(cache_dir, today=date(2023, 1, 1))
+
+    assert list(supply.columns) == [
+        "water_year",
+        "natural_flow_maf",
+        "kind",
+        "estimate_low_maf",
+        "estimate_high_maf",
+        "through_date",
+    ]
+    published_rows = supply[supply["water_year"] <= 2020]
+    assert (published_rows["kind"] == "published_final").all()
+    assert published_rows["estimate_low_maf"].isna().all()
+
+    for wy in (2021, 2022):
+        row = supply[supply["water_year"] == wy].iloc[0]
+        assert row["kind"] == "estimated"
+        assert row["estimate_low_maf"] < row["natural_flow_maf"]
+        assert row["natural_flow_maf"] < row["estimate_high_maf"]
+
+
+def test_paleo_supply_has_a_twenty_year_rolling_mean(cache_dir: Path) -> None:
+    years = list(range(762, 802))
+    values = [float(i) for i in range(len(years))]
+    meko = annual_frame(
+        MEKO_RECON.series_id,
+        years,
+        [v * AF_PER_MAF for v in values],
+        ["final"] * len(years),
+    )
+    write_parquet_atomic(
+        meko, cache_dir / "published" / f"{MEKO_RECON.series_id}.parquet"
+    )
+
+    paleo = paleo_supply(cache_dir)
+
+    assert list(paleo.columns) == ["water_year", "recon_maf", "recon_20yr_mean_maf"]
+    assert paleo["recon_20yr_mean_maf"].isna().sum() == 19
+    assert paleo["recon_20yr_mean_maf"].iloc[19] == pytest.approx(sum(values[:20]) / 20)
