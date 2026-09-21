@@ -61,3 +61,15 @@ def describe_trend(trend: TrendResult, subject: str) -> str:
         f"per decade since WY{trend.first_year} "
         f"(Theil-Sen; tau={trend.kendall_tau:.2f}, p={trend.p_value:.3f})."
     )
+
+
+def describe_timing_trend(trend: TrendResult, subject: str) -> str:
+    """A day-of-water-year Theil-Sen trend as a sentence, e.g. "Peak snowpack
+    has shifted 5.2 days earlier per decade since WY1980 (Theil-Sen;
+    tau=-0.31, p=0.004)."."""
+    direction = "earlier" if trend.slope_per_decade < 0 else "later"
+    return (
+        f"{subject} has shifted {abs(trend.slope_per_decade):.1f} days "
+        f"{direction} per decade since WY{trend.first_year} "
+        f"(Theil-Sen; tau={trend.kendall_tau:.2f}, p={trend.p_value:.3f})."
+    )

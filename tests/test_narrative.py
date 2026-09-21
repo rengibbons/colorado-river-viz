@@ -7,6 +7,7 @@ from colorado_river_viz.narrative import (
     describe_peak_swe,
     describe_runoff_year,
     describe_supply_vs_compact,
+    describe_timing_trend,
     describe_trend,
 )
 
@@ -89,3 +90,20 @@ def test_describe_trend_says_risen_for_a_positive_slope() -> None:
     sentence = describe_trend(_trend(0.05, 13.2), "Peak SWE")
 
     assert sentence.startswith("Peak SWE has risen about 13% per decade")
+
+
+def test_describe_timing_trend_says_earlier_for_a_negative_slope() -> None:
+    trend = _trend(-5.2, -13.2)
+
+    sentence = describe_timing_trend(trend, "Peak snowpack")
+
+    assert sentence == (
+        "Peak snowpack has shifted 5.2 days earlier per decade since WY1981 "
+        "(Theil-Sen; tau=-0.26, p=0.011)."
+    )
+
+
+def test_describe_timing_trend_says_later_for_a_positive_slope() -> None:
+    sentence = describe_timing_trend(_trend(3.0, 13.2), "Snow melt-out")
+
+    assert sentence.startswith("Snow melt-out has shifted 3.0 days later per decade")
