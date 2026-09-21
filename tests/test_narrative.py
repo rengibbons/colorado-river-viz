@@ -6,8 +6,25 @@ from colorado_river_viz.metrics.trend import TrendResult
 from colorado_river_viz.narrative import (
     describe_peak_swe,
     describe_runoff_year,
+    describe_supply_vs_compact,
     describe_trend,
 )
+
+
+def test_describe_supply_vs_compact_reports_the_post_year_mean_and_shortfall() -> None:
+    supply = pd.DataFrame(
+        {
+            "water_year": [1999, 2000, 2001, 2002],
+            "natural_flow_maf": [20.0, 12.0, 12.0, 12.0],
+        }
+    )
+
+    sentence = describe_supply_vs_compact(supply, since_year=2000)
+
+    assert sentence == (
+        "Since WY2000, the river has averaged 12.0 MAF a year -- 27% short of "
+        "the 16.5 MAF the 1922 Compact promised."
+    )
 
 
 def test_describe_peak_swe_reports_the_value_pct_and_date() -> None:
