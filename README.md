@@ -16,9 +16,10 @@ feeder mountain ranges.
 6. [Install Pre-Commit Hooks](#6-install-pre-commit-hooks)
 7. [Launch JupyterLab](#7-launch-jupyterlab)
 8. [Explore the Notebook](#8-explore-the-notebook)
-9. [Run Tests](#9-run-tests)
-10. [Adding New Packages](#10-adding-new-packages)
-11. [Project Layout](#11-project-layout)
+9. [Run the Story Notebook](#9-run-the-story-notebook)
+10. [Run Tests](#10-run-tests)
+11. [Adding New Packages](#11-adding-new-packages)
+12. [Project Layout](#12-project-layout)
 
 ---
 
@@ -156,7 +157,43 @@ NRCS APIs described below and plots each series so you can inspect it.
 
 ---
 
-## 9. Run Tests
+## 9. Run the Story Notebook
+
+`notebooks/colorado_river_story.ipynb` tells the six-chapter Colorado River
+story (snowpack, runoff, dams, reservoirs) with a map and a "2026 at a
+glance" KPI panel, all built from data cached locally in `data/cache/`
+(gitignored — it's rebuilt from public APIs, not checked into git).
+
+**First time:** build the cache from the live APIs. A full history fetch
+takes a few minutes:
+
+```bash
+uv run python scripts/build_cache.py --mode full
+```
+
+**Later, to bring the cache up to date** (only refetches recent days per
+series, seconds to a minute):
+
+```bash
+uv run python scripts/build_cache.py --mode incremental
+```
+
+Then open and run the notebook top-to-bottom:
+
+```bash
+uv run jupyter lab notebooks/colorado_river_story.ipynb
+```
+
+The notebook's setup cell has a `REFRESH` variable (`"offline"` by default)
+that controls whether it refreshes the cache itself before running — set it
+to `"incremental"` or `"full"` there instead of running the script
+separately if you'd rather do it from within the notebook. With
+`REFRESH = "offline"`, the notebook uses only what's already cached and needs
+no network access, which is what CI and a normal read-through use.
+
+---
+
+## 10. Run Tests
 
 ```bash
 uv run pytest
@@ -167,7 +204,7 @@ work as expected. You don't need to write tests immediately, but the setup is re
 
 ---
 
-## 10. Adding New Packages
+## 11. Adding New Packages
 
 When you want to use a new Python package (e.g., `seaborn`):
 
@@ -196,26 +233,46 @@ get the exact same package versions.
 
 ---
 
-## 11. Project Layout
+## 12. Project Layout
 
 ```
 colorado-river-viz/
 │
 ├── data/                   # Data files. Large files are gitignored — store
-│                           # big datasets here without worrying about git.
+│   │                       # big datasets here without worrying about git.
+│   └── cache/              # The local pipeline cache (gitignored): one parquet
+│                           # file per series plus a manifest.json. Rebuilt from
+│                           # public APIs with scripts/build_cache.py -- never
+│                           # committed, since it's derived, not source data.
 │
 ├── notebooks/              # Jupyter notebooks for exploration and analysis.
-│   └── data_sources_first_visuals.ipynb
+│   ├── data_sources_first_visuals.ipynb  # Frozen; see decision 0011.
+│   └── colorado_river_story.ipynb        # The six-chapter story notebook.
 │
 ├── scripts/                # Standalone Python scripts for running analyses.
+│   └── build_cache.py      # Builds/refreshes data/cache/ from the live APIs.
 │
 ├── src/
 │   └── colorado_river_viz/          # The importable Python package.
 │       ├── __init__.py     # Makes `from colorado_river_viz import ...` work.
-│       └── data_sources.py # REST clients for USGS, RISE, and AWDB/SNOTEL data.
+│       ├── data_sources.py # REST clients for USGS, RISE, and AWDB/SNOTEL data.
+│       ├── http_session.py # Shared retrying HTTP session per data source.
+│       ├── settings.py     # Pipeline settings, read from `CRV_*` env vars.
+│       ├── catalog.py      # The registry of every series the story uses.
+│       ├── cache.py        # Cache read/write, refresh planning, manifest.
+│       ├── published.py    # Parsers for the natural-flow xlsx and Meko txt.
+│       ├── snotel.py       # SNOTEL station discovery and batched fetching.
+│       ├── water_year.py   # Water-year and day-of-water-year arithmetic.
+│       ├── reservoirs.py, reservoir_geometry.py  # Reservoir reference data.
+│       ├── constants.py, errors.py, schema.py    # Shared constants/types.
+│       ├── metrics/        # Pure metric functions: flow, snow, timing,
+│       │                   # trend, natural-flow bridge, reservoir.
+│       ├── story_tables.py # One derived table per chapter, built from the cache.
+│       ├── narrative.py    # Takeaway sentences built from table rows.
+│       └── charts/         # One `build_*()` chart function per chapter, plus
+│                           # a shared theme.py.
 │
 ├── tests/                  # Automated tests for the colorado_river_viz package.
-│   └── test_data_sources.py
 │
 ├── .gitignore              # Tells git which files to ignore (e.g., .venv/, large data files).
 ├── .pre-commit-config.yaml # Configuration for pre-commit hooks.
