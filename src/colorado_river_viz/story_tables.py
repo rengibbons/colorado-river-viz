@@ -64,8 +64,6 @@ from colorado_river_viz.water_year import (
 )
 
 PALEO_ROLLING_WINDOW_YEARS = 20
-CISCO_ENVELOPE_YEARS = YearSpan(1914, 1962)
-"""Before most upstream storage (design §6.6)."""
 
 BEFORE_DAM_YEARS = YearSpan(1922, 1962)
 AFTER_DAM_START_YEAR = 1981
@@ -275,46 +273,6 @@ def timing_annual(cache_dir: Path, snow_annual_table: pd.DataFrame) -> pd.DataFr
     return snow_timing.merge(cisco_cov, on="water_year", how="outer").sort_values(
         "water_year", ignore_index=True
     )
-
-
-def cisco_hydrograph(
-    cache_dir: Path, envelope_years: YearSpan = CISCO_ENVELOPE_YEARS
-) -> pd.DataFrame:
-    """Cisco daily cfs in the same water_year/day_of_water_year layout as
-    ``snow_index_daily()``, plus the ``envelope_years`` per-day median and
-    10th/90th percentile envelope (design §6.6).
-    """
-    daily = load_daily(cache_dir, CISCO)
-    dates = pd.DatetimeIndex(daily["date"])
-    daily = daily.assign(
-        water_year=water_year(dates),
-        day_of_water_year=day_of_water_year(dates),
-    )
-
-    in_envelope = daily["water_year"].between(envelope_years.first, envelope_years.last)
-    baseline = daily[in_envelope]
-    grouped = baseline.groupby("day_of_water_year")["value"]
-    envelope = pd.DataFrame(
-        {
-            "median_cfs": grouped.median(),
-            "p10_cfs": grouped.quantile(0.10),
-            "p90_cfs": grouped.quantile(0.90),
-        }
-    ).reset_index()
-
-    return daily.merge(envelope, on="day_of_water_year", how="left").rename(
-        columns={"value": "cfs"}
-    )[
-        [
-            "date",
-            "water_year",
-            "day_of_water_year",
-            "cfs",
-            "median_cfs",
-            "p10_cfs",
-            "p90_cfs",
-        ]
-    ]
 
 
 def _regime_label(

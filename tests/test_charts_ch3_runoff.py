@@ -6,7 +6,6 @@ import pytest
 
 from colorado_river_viz.charts.ch3_runoff import (
     build_efficiency_trend,
-    build_snow_vs_runoff,
     residual_efficiency_trend,
 )
 from colorado_river_viz.constants import YearSpan
@@ -26,22 +25,6 @@ def _runoff(years: range, slope: float = -0.02, noise: float = 0.0) -> pd.DataFr
             "runoff_efficiency_index": 100 * (apr_jul / peak_swe) / np.mean(efficiency),
         }
     )
-
-
-def test_snow_vs_runoff_smoke_test() -> None:
-    fig = build_snow_vs_runoff(_runoff(range(1990, 2010)))
-
-    assert len(fig.data) >= 2  # scatter + at least one half-split fit line
-    assert fig.layout.title.text
-    assert fig.to_json()
-
-
-def test_snow_vs_runoff_labels_highlight_years() -> None:
-    fig = build_snow_vs_runoff(_runoff(range(1980, 2027)))
-
-    labels = {a.text for a in fig.layout.annotations}
-    assert "WY2026" in labels
-    assert "WY1985" in labels
 
 
 def test_efficiency_trend_annotation_reports_the_slope() -> None:

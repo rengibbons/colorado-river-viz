@@ -24,7 +24,6 @@ from colorado_river_viz.story_tables import (
     MAP_SITES,
     annual_supply,
     basin_map_layers,
-    cisco_hydrograph,
     kpis,
     lees_ferry_regimes,
     paleo_supply,
@@ -365,27 +364,6 @@ def test_timing_annual_gives_expected_days_and_excludes_incomplete_cisco_years(
     row_2022 = timing[timing["water_year"] == 2022].iloc[0]
     assert pd.isna(row_2022["snow_peak_doy"])
     assert pd.isna(row_2022["cisco_center_of_volume_doy"])  # incomplete year excluded
-
-
-def test_cisco_hydrograph_has_an_envelope_from_the_baseline_years(
-    cache_dir: Path,
-) -> None:
-    _write_cisco_cache(cache_dir, range(1914, 1965), incomplete=set())
-
-    hydro = cisco_hydrograph(cache_dir)
-
-    assert list(hydro.columns) == [
-        "date",
-        "water_year",
-        "day_of_water_year",
-        "cfs",
-        "median_cfs",
-        "p10_cfs",
-        "p90_cfs",
-    ]
-    assert hydro["median_cfs"].notna().all()
-    post_baseline = hydro[hydro["water_year"] == 1964]
-    assert post_baseline["median_cfs"].notna().all()
 
 
 def _write_lees_ferry_cache(cache_dir: Path, years: range) -> None:

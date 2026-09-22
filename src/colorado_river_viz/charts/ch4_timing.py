@@ -1,4 +1,4 @@
-"""Chapter 4 charts: timing trends and the Cisco hydrograph (design §7)."""
+"""Chapter 4 chart: timing trends (design §7)."""
 
 from __future__ import annotations
 
@@ -10,14 +10,11 @@ from colorado_river_viz.charts.theme import (
     PALETTES,
     Theme,
     day_of_water_year_ticks,
-    direct_label,
     layout_template,
-    style_for_year,
 )
 from colorado_river_viz.metrics.trend import theil_sen_trend
 
 DEFAULT_TIMING_TITLE = "The river runs earlier and faster than it used to"
-DEFAULT_HYDROGRAPH_TITLE = "Cisco's hydrograph has changed shape"
 
 _TIMING_PANELS = (
     ("snow_peak_doy", "Peak snowpack"),
@@ -91,92 +88,4 @@ def build_timing_trends(
         )
 
     fig.update_layout(template=layout_template(theme), title=title)
-    return fig
-
-
-def build_cisco_spaghetti(
-    hydrograph: pd.DataFrame,
-    theme: Theme = "light",
-    title: str = DEFAULT_HYDROGRAPH_TITLE,
-) -> go.Figure:
-    """One line per water year of Cisco daily flow, against the pre-1963 median
-    and 10th/90th percentile envelope -- the same treatment as the chapter 2
-    snow spaghetti (design §7).
-
-    ``hydrograph`` is ``story_tables.cisco_hydrograph()``'s output. The USGS
-    Cisco record has no data for WY1918-1922, so the baseline envelope draws
-    on 44 complete years (1914-1962), not 49 (T20 carry-over note).
-    """
-    palette = PALETTES[theme]
-    envelope = hydrograph.drop_duplicates("day_of_water_year").sort_values(
-        "day_of_water_year"
-    )
-    band_upper = go.Scatter(
-        x=envelope["day_of_water_year"],
-        y=envelope["p90_cfs"],
-        line={"width": 0},
-        hoverinfo="skip",
-        showlegend=False,
-        name="90th percentile (1914-1962)",
-    )
-    band_lower = go.Scatter(
-        x=envelope["day_of_water_year"],
-        y=envelope["p10_cfs"],
-        line={"width": 0},
-        fill="tonexty",
-        fillcolor=palette.band_fill,
-        hoverinfo="skip",
-        showlegend=False,
-        name="10th-90th percentile (1914-1962)",
-    )
-    median_trace = go.Scatter(
-        x=envelope["day_of_water_year"],
-        y=envelope["median_cfs"],
-        mode="lines",
-        line={"color": palette.text_secondary, "width": 1.5, "dash": "dot"},
-        hoverinfo="skip",
-        showlegend=False,
-        name="1914-1962 median",
-    )
-    fig = go.Figure(data=[band_upper, band_lower, median_trace])
-
-    for water_year in sorted(hydrograph["water_year"].unique()):
-        rows = hydrograph.loc[hydrograph["water_year"] == water_year].dropna(
-            subset=["cfs"]
-        )
-        if rows.empty:
-            continue
-        style = style_for_year(int(water_year), theme)
-        fig.add_trace(
-            go.Scatter(
-                x=rows["day_of_water_year"],
-                y=rows["cfs"],
-                mode="lines",
-                line={"color": style.color, "width": style.width},
-                showlegend=False,
-                name=f"WY{int(water_year)}",
-                hovertemplate=f"WY{int(water_year)}: %{{y:,.0f}} cfs<extra></extra>",
-            )
-        )
-        if style.is_present:
-            last = rows.iloc[-1]
-            direct_label(
-                fig,
-                x=last["day_of_water_year"],
-                y=last["cfs"],
-                text=f"WY{int(water_year)}",
-                color=style.color,
-            )
-
-    tick_positions, tick_labels = day_of_water_year_ticks()
-    fig.update_layout(
-        template=layout_template(theme),
-        title=title,
-        xaxis={
-            "tickmode": "array",
-            "tickvals": tick_positions,
-            "ticktext": tick_labels,
-        },
-        yaxis_title="Cisco daily flow (cfs)",
-    )
     return fig

@@ -3,10 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from colorado_river_viz.charts.ch4_timing import (
-    build_cisco_spaghetti,
-    build_timing_trends,
-)
+from colorado_river_viz.charts.ch4_timing import build_timing_trends
 
 
 def _timing(years: range) -> pd.DataFrame:
@@ -22,22 +19,6 @@ def _timing(years: range) -> pd.DataFrame:
             ),
         }
     )
-
-
-def _hydrograph(years: list[int]) -> pd.DataFrame:
-    rows = [
-        {
-            "water_year": wy,
-            "day_of_water_year": doy,
-            "cfs": 1000.0 + doy,
-            "median_cfs": 1000.0 + doy,
-            "p10_cfs": 800.0 + doy,
-            "p90_cfs": 1200.0 + doy,
-        }
-        for wy in years
-        for doy in range(1, 6)
-    ]
-    return pd.DataFrame(rows)
 
 
 def test_timing_trends_has_three_panels_with_dots_line_and_label() -> None:
@@ -59,27 +40,6 @@ def test_timing_trends_y_axes_use_date_ticks_not_day_numbers() -> None:
 
 def test_timing_trends_smoke_test() -> None:
     fig = build_timing_trends(_timing(range(1980, 2027)))
-
-    assert fig.layout.title.text
-    assert fig.to_json()
-
-
-def test_cisco_spaghetti_trace_count_is_years_plus_band_and_median() -> None:
-    years = [1990, 2018, 2026]
-    fig = build_cisco_spaghetti(_hydrograph(years))
-
-    assert len(fig.data) == len(years) + 3  # band (2) + median (1)
-
-
-def test_cisco_spaghetti_present_year_gets_a_direct_label() -> None:
-    fig = build_cisco_spaghetti(_hydrograph([2026]))
-
-    assert len(fig.layout.annotations) == 1
-    assert fig.layout.annotations[0].text == "WY2026"
-
-
-def test_cisco_spaghetti_smoke_test() -> None:
-    fig = build_cisco_spaghetti(_hydrograph([1990, 2026]))
 
     assert fig.layout.title.text
     assert fig.to_json()
