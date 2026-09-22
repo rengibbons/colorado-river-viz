@@ -11,6 +11,7 @@ from colorado_river_viz.metrics.snow import (
     station_timing,
     station_triplet_of,
     to_wide,
+    top_bottom_peak_years,
 )
 from colorado_river_viz.schema import canonical_frame
 from colorado_river_viz.snotel import snotel_series_id
@@ -153,6 +154,48 @@ def test_annual_peak_and_april_first_values() -> None:
     assert peak["peak_date"] == WY2025[189]
     assert april["apr1_swe_in"] == pytest.approx(19.0 * 183 / 190)
     assert april["apr1_pct_of_median"] == pytest.approx(100 * 183 / 190)
+
+
+def test_annual_peaks_drops_water_years_before_the_fixed_index_starts() -> None:
+    wy1980 = pd.date_range("1979-10-01", "1980-09-30", freq="D")  # leap, 366 days
+    wy1981 = pd.date_range("1980-10-01", "1981-09-30", freq="D")  # 365 days
+    dates = pd.DatetimeIndex(wy1980.append(wy1981))
+    values = np.concatenate([np.full(len(wy1980), 99.0), np.full(len(wy1981), 19.0)])
+    wide = _wide({"a": values}, dates)
+
+    index = basin_index_daily(wide, _flat_medians(["a"], 19.0))
+    peaks = annual_peaks(index)
+
+    assert set(peaks["water_year"]) == {1981}
+    assert peaks.set_index("water_year").loc[1981, "peak_swe_in"] == pytest.approx(19.0)
+
+
+def test_top_bottom_peak_years_orders_most_extreme_first() -> None:
+    peaks = pd.DataFrame(
+        {
+            "water_year": [1985, 2002, 2011, 2018, 2019, 2023, 2026],
+            "peak_swe_in": [30.0, 8.0, 25.0, 6.0, 28.0, 22.0, 4.0],
+        }
+    )
+
+    driest, wettest = top_bottom_peak_years(peaks, n=3)
+
+    assert driest == (2026, 2018, 2002)
+    assert wettest == (1985, 2019, 2011)
+
+
+def test_top_bottom_peak_years_ignores_nan_peaks() -> None:
+    peaks = pd.DataFrame(
+        {
+            "water_year": [1985, 2002, 2011],
+            "peak_swe_in": [30.0, np.nan, 8.0],
+        }
+    )
+
+    driest, wettest = top_bottom_peak_years(peaks, n=2)
+
+    assert driest == (2011, 1985)
+    assert wettest == (1985, 2011)
 
 
 def test_station_peak_and_meltout_days() -> None:

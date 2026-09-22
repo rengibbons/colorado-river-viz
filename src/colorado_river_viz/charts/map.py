@@ -5,15 +5,18 @@ from __future__ import annotations
 
 import plotly.graph_objects as go
 
-from colorado_river_viz.charts.theme import PALETTES, Theme, layout_template
+from colorado_river_viz.charts.theme import (
+    PALETTES,
+    RESERVOIR_COLOR,
+    Theme,
+    layout_template,
+)
 from colorado_river_viz.story_tables import BasinMapLayers
 
 DEFAULT_TITLE = "Meet the river"
 MAP_STYLE = "open-street-map"
 DEFAULT_ZOOM = 5.4
 DEFAULT_CENTER = {"lat": 37.5, "lon": -111.0}
-
-_SITE_SYMBOLS = {"gauge": "circle", "reservoir": "square"}
 
 
 def build_basin_map(
@@ -45,25 +48,27 @@ def build_basin_map(
             lat=in_index["latitude"],
             lon=in_index["longitude"],
             mode="markers",
-            marker={"size": 8, "color": palette.high},
+            marker={"size": 14, "color": palette.high},
             name="Snow index station",
             text=in_index["name"],
             hovertemplate="%{text}<extra>Snow index station</extra>",
         )
     )
 
-    for kind, label in (("gauge", "Stream gauge"), ("reservoir", "Reservoir")):
+    # Scattermap only honors marker.color for the "circle" symbol (other maki
+    # icons, e.g. "square", ignore it and render black) -- gauge and reservoir
+    # are distinguished by color instead of shape (decision 0029).
+    for kind, label, color in (
+        ("gauge", "Stream gauge", palette.low),
+        ("reservoir", "Reservoir", RESERVOIR_COLOR[theme]),
+    ):
         rows = layers.sites.loc[layers.sites["kind"] == kind]
         fig.add_trace(
             go.Scattermap(
                 lat=rows["latitude"],
                 lon=rows["longitude"],
                 mode="markers+text",
-                marker={
-                    "size": 14,
-                    "symbol": _SITE_SYMBOLS[kind],
-                    "color": palette.low,
-                },
+                marker={"size": 14, "symbol": "circle", "color": color},
                 text=rows["name"],
                 textposition="top right",
                 name=label,
@@ -76,14 +81,16 @@ def build_basin_map(
         {
             "source": layers.basins["14"],
             "type": "fill",
-            "color": palette.band_fill,
-            "opacity": 0.5,
+            "color": palette.baseline,
+            "opacity": 0.55,
+            "below": "traces",
         },
         {
             "source": layers.basins["15"],
             "type": "fill",
-            "color": palette.gridline,
-            "opacity": 0.3,
+            "color": palette.baseline,
+            "opacity": 0.35,
+            "below": "traces",
         },
     ]
     fig.update_layout(

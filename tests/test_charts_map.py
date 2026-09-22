@@ -75,6 +75,22 @@ def test_build_basin_map_draws_two_basin_fill_layers() -> None:
     assert len(fig.layout.map.layers) == 2
 
 
+def test_build_basin_map_basin_fill_layers_sit_below_the_markers() -> None:
+    fig = build_basin_map(_layers(n_index=1, n_other=1))
+
+    assert all(layer.below == "traces" for layer in fig.layout.map.layers)
+
+
+def test_build_basin_map_gauge_and_reservoir_use_colorable_circle_markers() -> None:
+    fig = build_basin_map(_layers(n_index=1, n_other=1))
+
+    gauge_trace = next(t for t in fig.data if t.name == "Stream gauge")
+    reservoir_trace = next(t for t in fig.data if t.name == "Reservoir")
+    assert gauge_trace.marker.symbol == "circle"
+    assert reservoir_trace.marker.symbol == "circle"
+    assert gauge_trace.marker.color != reservoir_trace.marker.color
+
+
 def test_build_basin_map_smoke_test() -> None:
     fig = build_basin_map(_layers(n_index=1, n_other=1))
 

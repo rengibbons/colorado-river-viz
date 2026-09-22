@@ -47,6 +47,27 @@ class Palette:
     high: str
 
 
+DRY_YEAR_COLORS: dict[Theme, tuple[str, str, str]] = {
+    "light": ("#e34948", "#eb6834", "#eda100"),
+    "dark": ("#e66767", "#d95926", "#c98500"),
+}
+"""Three warm hues (dataviz palette slots red/orange/yellow) for the driest
+water years on the chapter 2 peak-SWE chart, most to least extreme."""
+
+WET_YEAR_COLORS: dict[Theme, tuple[str, str, str]] = {
+    "light": ("#2a78d6", "#4a3aa7", "#1baf7a"),
+    "dark": ("#3987e5", "#9085e9", "#199e70"),
+}
+"""Three cool hues (dataviz palette slots blue/violet/aqua) for the wettest
+water years on the chapter 2 peak-SWE chart, most to least extreme."""
+
+RESERVOIR_COLOR: dict[Theme, str] = {
+    "light": "#008300",
+    "dark": "#008300",
+}
+"""Dataviz palette slot green, for reservoir markers on the basin map --
+distinct from the snow index stations' blue (``Palette.high``)."""
+
 PALETTES: dict[Theme, Palette] = {
     "light": Palette(
         surface="#fcfcfb",

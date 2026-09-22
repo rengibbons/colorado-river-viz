@@ -9,13 +9,23 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from colorado_river_viz.constants import COMPLETE_WATER_YEAR_MIN_COVERAGE
+from colorado_river_viz.constants import (
+    COMPLETE_WATER_YEAR_MIN_COVERAGE,
+    SNOTEL_INDEX_RECORD_START,
+)
 from colorado_river_viz.water_year import day_of_water_year, water_year
 
 MAX_INTERPOLATED_GAP_DAYS = 7
 MIN_REPORTING_FRACTION = 0.9
 TIMING_SEASON_END = (7, 31)
 """Station timing needs data from Oct 1 through Jul 31 (decision 0024)."""
+
+EARLIEST_INDEX_WATER_YEAR = water_year(SNOTEL_INDEX_RECORD_START)
+"""No water year before this has enough index stations reporting for the
+basin mean to be meaningful -- some of the 54 fixed stations (decision 0013)
+only start on ``SNOTEL_INDEX_RECORD_START`` itself, so the year it starts in
+(WY1980) sees a single stray reporting day rather than a real season
+(decision 0029)."""
 
 
 def station_triplet_of(series_id: str) -> str:
@@ -112,14 +122,34 @@ def basin_index_daily(
 
 
 def annual_peaks(index_daily: pd.DataFrame) -> pd.DataFrame:
-    """Peak basin SWE per water year: ``water_year``, ``peak_swe_in``, ``peak_date``."""
+    """Peak basin SWE per water year: ``water_year``, ``peak_swe_in``, ``peak_date``.
+
+    Water years before ``EARLIEST_INDEX_WATER_YEAR`` are dropped (design §6.4:
+    "water_year: WY1981 onward"; decision 0029).
+    """
     valid = index_daily.dropna(subset=["basin_swe_in"])
+    valid = valid[valid["water_year"] >= EARLIEST_INDEX_WATER_YEAR]
     peak_rows = valid.loc[valid.groupby("water_year")["basin_swe_in"].idxmax()]
     return (
         peak_rows[["water_year", "basin_swe_in", "date"]]
         .rename(columns={"basin_swe_in": "peak_swe_in", "date": "peak_date"})
         .reset_index(drop=True)
     )
+
+
+def top_bottom_peak_years(
+    peaks: pd.DataFrame, n: int = 3
+) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    """The ``n`` driest and ``n`` wettest water years by peak basin SWE.
+
+    ``peaks`` is ``annual_peaks()``'s output. Returns ``(driest, wettest)``:
+    driest years ordered from most to least extreme (smallest peak first),
+    wettest years ordered from most to least extreme (largest peak first).
+    """
+    ordered = peaks.dropna(subset=["peak_swe_in"]).sort_values("peak_swe_in")
+    driest = tuple(int(wy) for wy in ordered["water_year"].head(n))
+    wettest = tuple(int(wy) for wy in ordered["water_year"].tail(n)[::-1])
+    return driest, wettest
 
 
 def april_first(index_daily: pd.DataFrame) -> pd.DataFrame:
