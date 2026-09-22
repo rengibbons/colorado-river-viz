@@ -6,6 +6,7 @@ from colorado_river_viz.metrics.trend import TrendResult
 from colorado_river_viz.narrative import (
     describe_dam_effect,
     describe_peak_swe,
+    describe_reservoir_drawdown,
     describe_runoff_year,
     describe_supply_vs_compact,
     describe_timing_trend,
@@ -123,4 +124,21 @@ def test_describe_dam_effect_reports_before_after_means_and_pct_lower() -> None:
     assert sentence == (
         "Before Glen Canyon Dam, Lees Ferry's annual peak flow averaged "
         "52,000 cfs; since 1981 it has averaged 24,000 cfs -- 54% lower."
+    )
+
+
+def test_describe_reservoir_drawdown_reports_fallen_for_a_decline() -> None:
+    storage = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["1999-06-01", "2000-06-01", "2026-06-01"]),
+            "reservoir": ["Combined", "Combined", "Combined"],
+            "pct_full": [96.0, 95.0, 33.0],
+        }
+    )
+
+    sentence = describe_reservoir_drawdown(storage, since_year=2000)
+
+    assert sentence == (
+        "Combined Powell and Mead storage has fallen from 95% full in 2000 "
+        "to 33% full today."
     )

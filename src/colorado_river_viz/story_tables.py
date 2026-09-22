@@ -27,14 +27,22 @@ from colorado_river_viz.cache import (
 from colorado_river_viz.catalog import (
     CISCO,
     LEES_FERRY,
+    MEAD_ELEVATION,
+    MEAD_STORAGE,
     MEKO_RECON,
     NATURAL_FLOW,
+    POWELL_ELEVATION,
+    POWELL_STORAGE,
     POWELL_UNREGULATED_INFLOW,
     snotel_index_series,
 )
 from colorado_river_viz.constants import AF_PER_MAF, NORMALS_PERIOD, YearSpan
 from colorado_river_viz.metrics.flow import center_of_volume, seasonal_volume
 from colorado_river_viz.metrics.natural_flow_bridge import apply_bridge, fit_bridge
+from colorado_river_viz.metrics.reservoir import (
+    combined_storage,
+    single_reservoir_storage,
+)
 from colorado_river_viz.metrics.snow import (
     annual_peaks,
     april_first,
@@ -44,6 +52,7 @@ from colorado_river_viz.metrics.snow import (
     station_timing,
     to_wide,
 )
+from colorado_river_viz.reservoirs import LAKE_MEAD, LAKE_POWELL
 from colorado_river_viz.water_year import day_of_water_year, water_year
 
 PALEO_ROLLING_WINDOW_YEARS = 20
@@ -365,3 +374,27 @@ def lees_ferry_regimes(
     )
 
     return LeesFerryRegimes(envelope=envelope, annual_peaks=annual_peaks)
+
+
+def reservoir_storage(cache_dir: Path) -> pd.DataFrame:
+    """Daily storage and elevation for Lake Powell, Lake Mead, and their
+    combined total (design §6.8).
+
+    Combined storage only covers days both reservoirs report, starting in
+    1964 when Powell storage begins. ``ft_above_min_power_pool`` is NaN for
+    the ``"Combined"`` rows, since it isn't meaningful summed across dams.
+    """
+    powell = single_reservoir_storage(
+        load_daily(cache_dir, POWELL_ELEVATION),
+        load_daily(cache_dir, POWELL_STORAGE),
+        LAKE_POWELL,
+    )
+    mead = single_reservoir_storage(
+        load_daily(cache_dir, MEAD_ELEVATION),
+        load_daily(cache_dir, MEAD_STORAGE),
+        LAKE_MEAD,
+    )
+    combined = combined_storage(powell, mead, LAKE_POWELL, LAKE_MEAD)
+    return pd.concat([powell, mead, combined], ignore_index=True).sort_values(
+        ["reservoir", "date"], ignore_index=True
+    )

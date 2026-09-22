@@ -77,6 +77,21 @@ def describe_dam_effect(annual_peaks: pd.DataFrame) -> str:
     )
 
 
+def describe_reservoir_drawdown(storage: pd.DataFrame, since_year: int = 2000) -> str:
+    """Combined storage's change from its ``since_year``-start value to its
+    latest value, e.g. "Combined Powell and Mead storage has fallen from 95%
+    full in 2000 to 33% full today."."""
+    combined = storage.loc[storage["reservoir"] == "Combined"].sort_values("date")
+    start = combined.loc[combined["date"].dt.year >= since_year].iloc[0]
+    latest = combined.iloc[-1]
+    verb = "fallen" if latest["pct_full"] < start["pct_full"] else "risen"
+    return (
+        f"Combined Powell and Mead storage has {verb} from "
+        f"{start['pct_full']:.0f}% full in {since_year} to "
+        f"{latest['pct_full']:.0f}% full today."
+    )
+
+
 def describe_timing_trend(trend: TrendResult, subject: str) -> str:
     """A day-of-water-year Theil-Sen trend as a sentence, e.g. "Peak snowpack
     has shifted 5.2 days earlier per decade since WY1980 (Theil-Sen;
