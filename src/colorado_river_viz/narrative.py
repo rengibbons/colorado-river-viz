@@ -63,6 +63,20 @@ def describe_trend(trend: TrendResult, subject: str) -> str:
     )
 
 
+def describe_dam_effect(annual_peaks: pd.DataFrame) -> str:
+    """The before/after Glen Canyon Dam change in Lees Ferry's annual peak flow,
+    e.g. "Before Glen Canyon Dam, Lees Ferry's annual peak flow averaged
+    52,000 cfs; since 1981 it has averaged 24,000 cfs -- 54% lower."."""
+    means = annual_peaks.groupby("regime")["peak_cfs"].mean()
+    before, after = means["before_dam"], means["after_dam"]
+    pct_lower = 100 * (before - after) / before
+    return (
+        "Before Glen Canyon Dam, Lees Ferry's annual peak flow averaged "
+        f"{before:,.0f} cfs; since 1981 it has averaged {after:,.0f} cfs "
+        f"-- {pct_lower:.0f}% lower."
+    )
+
+
 def describe_timing_trend(trend: TrendResult, subject: str) -> str:
     """A day-of-water-year Theil-Sen trend as a sentence, e.g. "Peak snowpack
     has shifted 5.2 days earlier per decade since WY1980 (Theil-Sen;

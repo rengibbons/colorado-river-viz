@@ -4,6 +4,7 @@ import pandas as pd
 
 from colorado_river_viz.metrics.trend import TrendResult
 from colorado_river_viz.narrative import (
+    describe_dam_effect,
     describe_peak_swe,
     describe_runoff_year,
     describe_supply_vs_compact,
@@ -107,3 +108,19 @@ def test_describe_timing_trend_says_later_for_a_positive_slope() -> None:
     sentence = describe_timing_trend(_trend(3.0, 13.2), "Snow melt-out")
 
     assert sentence.startswith("Snow melt-out has shifted 3.0 days later per decade")
+
+
+def test_describe_dam_effect_reports_before_after_means_and_pct_lower() -> None:
+    annual_peaks = pd.DataFrame(
+        {
+            "regime": ["before_dam", "before_dam", "after_dam", "after_dam"],
+            "peak_cfs": [50_000.0, 54_000.0, 22_000.0, 26_000.0],
+        }
+    )
+
+    sentence = describe_dam_effect(annual_peaks)
+
+    assert sentence == (
+        "Before Glen Canyon Dam, Lees Ferry's annual peak flow averaged "
+        "52,000 cfs; since 1981 it has averaged 24,000 cfs -- 54% lower."
+    )

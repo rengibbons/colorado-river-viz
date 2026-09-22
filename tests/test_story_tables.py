@@ -9,6 +9,7 @@ import pytest
 from colorado_river_viz.cache import write_parquet_atomic
 from colorado_river_viz.catalog import (
     CISCO,
+    LEES_FERRY,
     MEKO_RECON,
     NATURAL_FLOW,
     POWELL_UNREGULATED_INFLOW,
@@ -21,6 +22,7 @@ from colorado_river_viz.schema import annual_frame, canonical_frame
 from colorado_river_viz.story_tables import (
     annual_supply,
     cisco_hydrograph,
+    lees_ferry_regimes,
     paleo_supply,
     runoff_vs_snow,
     snow_annual,
@@ -380,3 +382,58 @@ def test_cisco_hydrograph_has_an_envelope_from_the_baseline_years(
     assert hydro["median_cfs"].notna().all()
     post_baseline = hydro[hydro["water_year"] == 1964]
     assert post_baseline["median_cfs"].notna().all()
+
+
+def _write_lees_ferry_cache(cache_dir: Path, years: range) -> None:
+    frames = [_rising_flow_daily(wy) for wy in years]
+    daily = pd.concat(frames, ignore_index=True)
+    frame = canonical_frame(
+        LEES_FERRY.series_id,
+        pd.DatetimeIndex(daily["date"]),
+        daily["value"],
+        "cfs",
+        "unknown",
+    )
+    write_parquet_atomic(
+        frame, cache_dir / "raw" / "usgs" / f"{LEES_FERRY.series_id}.parquet"
+    )
+
+
+@pytest.mark.parametrize(
+    ("water_year", "expected_regime"),
+    [(1962, "before_dam"), (1963, None), (1980, None), (1981, "after_dam")],
+)
+def test_lees_ferry_regimes_labels_years_at_the_dam_boundaries(
+    cache_dir: Path, water_year: int, expected_regime: str | None
+) -> None:
+    _write_lees_ferry_cache(cache_dir, range(1922, 1985))
+
+    regimes = lees_ferry_regimes(cache_dir)
+
+    peak_years = (
+        set(
+            regimes.annual_peaks.loc[
+                regimes.annual_peaks["regime"] == expected_regime, "water_year"
+            ]
+        )
+        if expected_regime is not None
+        else set()
+    )
+    if expected_regime is None:
+        assert water_year not in set(regimes.annual_peaks["water_year"])
+    else:
+        assert water_year in peak_years
+
+
+def test_lees_ferry_regimes_envelope_has_a_full_day_of_water_year_range(
+    cache_dir: Path,
+) -> None:
+    _write_lees_ferry_cache(cache_dir, range(1922, 1963))
+
+    regimes = lees_ferry_regimes(cache_dir)
+
+    before = regimes.envelope[regimes.envelope["regime"] == "before_dam"]
+    assert set(before["regime"]) == {"before_dam"}
+    assert before["day_of_water_year"].min() == 1
+    assert (before["p10_cfs"] <= before["median_cfs"]).all()
+    assert (before["median_cfs"] <= before["p90_cfs"]).all()

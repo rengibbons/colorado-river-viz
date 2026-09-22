@@ -11,6 +11,7 @@ envelope (our own index's 1991-2020 daily median), and ``peak_pct_of_median``
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
@@ -25,6 +26,7 @@ from colorado_river_viz.cache import (
 )
 from colorado_river_viz.catalog import (
     CISCO,
+    LEES_FERRY,
     MEKO_RECON,
     NATURAL_FLOW,
     POWELL_UNREGULATED_INFLOW,
@@ -47,6 +49,11 @@ from colorado_river_viz.water_year import day_of_water_year, water_year
 PALEO_ROLLING_WINDOW_YEARS = 20
 CISCO_ENVELOPE_YEARS = YearSpan(1914, 1962)
 """Before most upstream storage (design §6.6)."""
+
+BEFORE_DAM_YEARS = YearSpan(1922, 1962)
+AFTER_DAM_START_YEAR = 1981
+"""Glen Canyon Dam closed in 1963; Lake Powell first filled in 1980, so the
+1963-1980 filling years are excluded from both regimes (design §6.7)."""
 
 
 def _index_wide_swe(cache_dir: Path, stations: pd.DataFrame) -> pd.DataFrame:
@@ -291,3 +298,70 @@ def cisco_hydrograph(
             "p90_cfs",
         ]
     ]
+
+
+def _regime_label(
+    wy: int, before_dam_years: YearSpan, after_dam_start_year: int
+) -> str | None:
+    if before_dam_years.contains(wy):
+        return "before_dam"
+    if wy >= after_dam_start_year:
+        return "after_dam"
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class LeesFerryRegimes:
+    """Lees Ferry flow before and after Glen Canyon Dam (design §6.7)."""
+
+    envelope: pd.DataFrame
+    """One row per ``regime``/``day_of_water_year``: median and 10th/90th
+    percentile ``cfs``."""
+
+    annual_peaks: pd.DataFrame
+    """One row per ``regime``/``water_year``: that year's ``peak_cfs``."""
+
+
+def lees_ferry_regimes(
+    cache_dir: Path,
+    before_dam_years: YearSpan = BEFORE_DAM_YEARS,
+    after_dam_start_year: int = AFTER_DAM_START_YEAR,
+) -> LeesFerryRegimes:
+    """Lees Ferry daily flow before and after Glen Canyon Dam (design §6.7).
+
+    ``before_dam`` is water years 1922-1962; ``after_dam`` is 1981 onward, once
+    Lake Powell first filled, so the 1963-1980 filling years don't blur the
+    comparison. Years in neither span (and thus with no ``regime``) are
+    dropped.
+    """
+    daily = load_daily(cache_dir, LEES_FERRY)
+    dates = pd.DatetimeIndex(daily["date"])
+    wy = water_year(dates)
+    daily = daily.assign(
+        water_year=wy,
+        day_of_water_year=day_of_water_year(dates),
+        regime=pd.array(
+            [_regime_label(y, before_dam_years, after_dam_start_year) for y in wy],
+            dtype="string",
+        ),
+    )
+    in_regime = daily.dropna(subset=["regime"])
+
+    grouped = in_regime.groupby(["regime", "day_of_water_year"], observed=True)["value"]
+    envelope = pd.DataFrame(
+        {
+            "median_cfs": grouped.median(),
+            "p10_cfs": grouped.quantile(0.10),
+            "p90_cfs": grouped.quantile(0.90),
+        }
+    ).reset_index()
+
+    annual_peaks = (
+        in_regime.groupby(["regime", "water_year"], observed=True)["value"]
+        .max()
+        .rename("peak_cfs")
+        .reset_index()
+        .sort_values(["regime", "water_year"], ignore_index=True)
+    )
+
+    return LeesFerryRegimes(envelope=envelope, annual_peaks=annual_peaks)
