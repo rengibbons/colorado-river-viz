@@ -57,7 +57,11 @@ from colorado_river_viz.metrics.snow import (
     to_wide,
 )
 from colorado_river_viz.reservoirs import LAKE_MEAD, LAKE_POWELL
-from colorado_river_viz.water_year import day_of_water_year, water_year
+from colorado_river_viz.water_year import (
+    day_of_water_year,
+    water_year,
+    water_year_bounds,
+)
 
 PALEO_ROLLING_WINDOW_YEARS = 20
 CISCO_ENVELOPE_YEARS = YearSpan(1914, 1962)
@@ -484,3 +488,180 @@ def basin_map_layers(cache_dir: Path, stations: pd.DataFrame) -> BasinMapLayers:
         "15": load_outline(cache_dir, LOWER_BASIN_OUTLINE),
     }
     return BasinMapLayers(stations=stations, sites=sites, basins=basins)
+
+
+def _ordinal(n: int) -> str:
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def _rank_lowest(values: pd.Series[float], key: int) -> tuple[int, int]:
+    """Rank ``key``'s value among ``values`` ascending (1 = lowest; decision 0027)."""
+    valid = values.dropna()
+    ranks = valid.rank(method="min")
+    return int(ranks.loc[key]), len(valid)
+
+
+def _annual_snapshot(daily: pd.DataFrame, value_col: str) -> pd.Series[float]:
+    """One row per water year: its last available value on or before ``as_of``."""
+    wy = water_year(pd.DatetimeIndex(daily["date"]))
+    return (
+        daily.assign(water_year=wy)
+        .sort_values("date")
+        .groupby("water_year")[value_col]
+        .last()
+    )
+
+
+def _kpi_row(
+    kpi_id: str,
+    label: str,
+    value: float,
+    unit: str,
+    display: str,
+    rank: int,
+    n_years: int,
+    as_of: date,
+    is_partial: bool,
+) -> dict[str, object]:
+    return {
+        "kpi_id": kpi_id,
+        "label": label,
+        "value": value,
+        "unit": unit,
+        "display": display,
+        "rank": rank,
+        "n_years": n_years,
+        "rank_phrase": f"{_ordinal(rank)} lowest of {n_years}",
+        "as_of": as_of,
+        "is_partial": is_partial,
+    }
+
+
+def kpis(
+    snow_annual_table: pd.DataFrame,
+    runoff_table: pd.DataFrame,
+    reservoir_storage_table: pd.DataFrame,
+    supply_table: pd.DataFrame,
+    as_of: date,
+    normals: YearSpan = NORMALS_PERIOD,
+) -> pd.DataFrame:
+    """The "2026 at a glance" tiles (design §6.9, decision 0027).
+
+    Every tile ranks ascending (1 = lowest on record). Continuous daily
+    metrics (Powell's ft above minimum power pool, combined percent full) are
+    reduced to one value per water year -- that year's most recent reading on
+    or before ``as_of`` -- so the in-progress year ranks on equal footing with
+    complete ones.
+    """
+    wy = water_year(as_of)
+    wy_is_partial = as_of < water_year_bounds(wy).end
+
+    peak_pct = snow_annual_table.set_index("water_year")["peak_pct_of_median"]
+    peak_rank, peak_n = _rank_lowest(peak_pct, wy)
+
+    normal_apr_jul = runoff_table.loc[
+        runoff_table["water_year"].between(normals.first, normals.last),
+        "apr_jul_unreg_maf",
+    ].mean()
+    apr_jul_pct_normal = (
+        100 * runoff_table.set_index("water_year")["apr_jul_unreg_maf"] / normal_apr_jul
+    )
+    inflow_rank, inflow_n = _rank_lowest(apr_jul_pct_normal, wy)
+
+    efficiency_index = runoff_table.set_index("water_year")["runoff_efficiency_index"]
+    efficiency_rank, efficiency_n = _rank_lowest(efficiency_index, wy)
+
+    powell = reservoir_storage_table.loc[
+        reservoir_storage_table["reservoir"] == LAKE_POWELL.name
+    ]
+    powell_annual = _annual_snapshot(powell, "ft_above_min_power_pool")
+    powell_rank, powell_n = _rank_lowest(powell_annual, wy)
+    powell_latest = powell.sort_values("date")["ft_above_min_power_pool"].iloc[-1]
+
+    combined = reservoir_storage_table.loc[
+        reservoir_storage_table["reservoir"] == "Combined"
+    ]
+    combined_annual = _annual_snapshot(combined, "pct_full")
+    combined_rank, combined_n = _rank_lowest(combined_annual, wy)
+    combined_latest = combined.sort_values("date")["pct_full"].iloc[-1]
+
+    supply_by_year = supply_table.set_index("water_year")
+    flow_values = supply_by_year["natural_flow_maf"]
+    flow_rank, flow_n = _rank_lowest(flow_values, wy)
+    flow_maf = float(flow_values.loc[wy])
+    flow_is_estimated = bool(supply_by_year["kind"].loc[wy] == "estimated")
+
+    return pd.DataFrame(
+        [
+            _kpi_row(
+                "peak_swe_pct_median",
+                "Peak snowpack",
+                peak_pct.loc[wy],
+                "%",
+                f"{peak_pct.loc[wy]:.0f}% of median",
+                peak_rank,
+                peak_n,
+                as_of,
+                wy_is_partial,
+            ),
+            _kpi_row(
+                "apr_jul_inflow_pct_normal",
+                "Spring runoff",
+                apr_jul_pct_normal.loc[wy],
+                "%",
+                f"{apr_jul_pct_normal.loc[wy]:.0f}% of the 1991-2020 average",
+                inflow_rank,
+                inflow_n,
+                as_of,
+                wy_is_partial,
+            ),
+            _kpi_row(
+                "runoff_efficiency_index",
+                "Runoff efficiency",
+                efficiency_index.loc[wy],
+                "index",
+                f"{efficiency_index.loc[wy]:.0f} (100 = normal)",
+                efficiency_rank,
+                efficiency_n,
+                as_of,
+                wy_is_partial,
+            ),
+            _kpi_row(
+                "powell_ft_above_min_power_pool",
+                "Lake Powell",
+                powell_latest,
+                "ft",
+                f"{powell_latest:.0f} ft above minimum power pool",
+                powell_rank,
+                powell_n,
+                as_of,
+                wy_is_partial,
+            ),
+            _kpi_row(
+                "combined_storage_pct_full",
+                "Combined storage",
+                combined_latest,
+                "%",
+                f"{combined_latest:.0f}% full",
+                combined_rank,
+                combined_n,
+                as_of,
+                wy_is_partial,
+            ),
+            _kpi_row(
+                "annual_natural_flow_maf",
+                "Natural flow this water year",
+                flow_maf,
+                "MAF",
+                f"{flow_maf:.1f} MAF" + (" (estimated)" if flow_is_estimated else ""),
+                flow_rank,
+                flow_n,
+                as_of,
+                flow_is_estimated,
+            ),
+        ]
+    )

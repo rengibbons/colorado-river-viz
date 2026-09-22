@@ -25,6 +25,7 @@ from colorado_river_viz.story_tables import (
     annual_supply,
     basin_map_layers,
     cisco_hydrograph,
+    kpis,
     lees_ferry_regimes,
     paleo_supply,
     runoff_vs_snow,
@@ -460,3 +461,114 @@ def test_basin_map_layers_has_one_site_row_per_map_site_and_both_outlines(
     assert layers.basins["14"] == upper
     assert layers.basins["15"] == lower
     assert layers.stations is stations
+
+
+_KPI_YEARS = list(range(2005, 2027))  # 22 years, ranks 1..22 by construction
+
+
+def _kpi_tables(
+    last_year_kind: str = "published_final",
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    ranks = list(range(1, len(_KPI_YEARS) + 1))
+    year_ends = pd.to_datetime([date(wy, 9, 30) for wy in _KPI_YEARS])
+
+    snow_annual_table = pd.DataFrame(
+        {"water_year": _KPI_YEARS, "peak_pct_of_median": ranks}
+    )
+    runoff_table = pd.DataFrame(
+        {
+            "water_year": _KPI_YEARS,
+            "apr_jul_unreg_maf": ranks,
+            "runoff_efficiency_index": ranks,
+        }
+    )
+    reservoir_storage_table = pd.concat(
+        [
+            pd.DataFrame(
+                {
+                    "date": year_ends,
+                    "reservoir": "Lake Powell",
+                    "ft_above_min_power_pool": ranks,
+                }
+            ),
+            pd.DataFrame(
+                {"date": year_ends, "reservoir": "Combined", "pct_full": ranks}
+            ),
+        ],
+        ignore_index=True,
+    )
+    kinds = ["published_final"] * (len(_KPI_YEARS) - 1) + [last_year_kind]
+    supply_table = pd.DataFrame(
+        {"water_year": _KPI_YEARS, "natural_flow_maf": ranks, "kind": kinds}
+    )
+    return snow_annual_table, runoff_table, reservoir_storage_table, supply_table
+
+
+@pytest.mark.parametrize(
+    ("target_water_year", "expected_ordinal"),
+    [
+        (2005, "1st"),
+        (2006, "2nd"),
+        (2007, "3rd"),
+        (2015, "11th"),
+        (2016, "12th"),
+        (2017, "13th"),
+        (2025, "21st"),
+        (2026, "22nd"),
+    ],
+)
+def test_kpis_rank_phrase_has_correct_ordinal_endings(
+    target_water_year: int, expected_ordinal: str
+) -> None:
+    snow_annual_table, runoff_table, reservoir_storage_table, supply_table = (
+        _kpi_tables()
+    )
+
+    table = kpis(
+        snow_annual_table,
+        runoff_table,
+        reservoir_storage_table,
+        supply_table,
+        as_of=date(target_water_year, 9, 30),
+    )
+
+    row = table[table["kpi_id"] == "peak_swe_pct_median"].iloc[0]
+    assert row["rank_phrase"] == f"{expected_ordinal} lowest of 22"
+
+
+def test_kpis_flags_the_estimated_current_water_year_as_partial() -> None:
+    snow_annual_table, runoff_table, reservoir_storage_table, supply_table = (
+        _kpi_tables(last_year_kind="estimated")
+    )
+
+    table = kpis(
+        snow_annual_table,
+        runoff_table,
+        reservoir_storage_table,
+        supply_table,
+        as_of=date(2026, 6, 1),
+    )
+
+    flow_row = table[table["kpi_id"] == "annual_natural_flow_maf"].iloc[0]
+    assert flow_row["is_partial"]
+    assert flow_row["display"].endswith("(estimated)")
+
+    other_row = table[table["kpi_id"] == "peak_swe_pct_median"].iloc[0]
+    assert other_row["is_partial"]  # as_of is before that water year's Sep 30
+
+
+def test_kpis_is_not_partial_for_a_published_complete_water_year() -> None:
+    snow_annual_table, runoff_table, reservoir_storage_table, supply_table = (
+        _kpi_tables()
+    )
+
+    table = kpis(
+        snow_annual_table,
+        runoff_table,
+        reservoir_storage_table,
+        supply_table,
+        as_of=date(2020, 9, 30),
+    )
+
+    flow_row = table[table["kpi_id"] == "annual_natural_flow_maf"].iloc[0]
+    assert not flow_row["is_partial"]
