@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -21,12 +22,14 @@ import pandas as pd
 from colorado_river_viz.cache import (
     load_annual,
     load_daily,
+    load_outline,
     load_snotel_daily,
     load_snotel_medians,
 )
 from colorado_river_viz.catalog import (
     CISCO,
     LEES_FERRY,
+    LOWER_BASIN_OUTLINE,
     MEAD_ELEVATION,
     MEAD_STORAGE,
     MEKO_RECON,
@@ -34,6 +37,7 @@ from colorado_river_viz.catalog import (
     POWELL_ELEVATION,
     POWELL_STORAGE,
     POWELL_UNREGULATED_INFLOW,
+    UPPER_BASIN_OUTLINE,
     snotel_index_series,
 )
 from colorado_river_viz.constants import AF_PER_MAF, NORMALS_PERIOD, YearSpan
@@ -398,3 +402,85 @@ def reservoir_storage(cache_dir: Path) -> pd.DataFrame:
     return pd.concat([powell, mead, combined], ignore_index=True).sort_values(
         ["reservoir", "date"], ignore_index=True
     )
+
+
+SiteKind = Literal["gauge", "reservoir"]
+
+
+@dataclass(frozen=True, slots=True)
+class MapSite:
+    """One labeled point on the basin map (decision 0026)."""
+
+    name: str
+    kind: SiteKind
+    latitude: float
+    longitude: float
+    description: str
+
+
+MAP_SITES: tuple[MapSite, ...] = (
+    MapSite(
+        name="Cisco",
+        kind="gauge",
+        latitude=38.8117,
+        longitude=-109.5346,
+        description="USGS 09180500, Colorado River near Cisco, UT",
+    ),
+    MapSite(
+        name="Lees Ferry",
+        kind="gauge",
+        latitude=36.8636,
+        longitude=-111.5878,
+        description="USGS 09380000, Colorado River at Lees Ferry, AZ",
+    ),
+    MapSite(
+        name="Lake Powell",
+        kind="reservoir",
+        latitude=36.9366,
+        longitude=-111.4830,
+        description="Glen Canyon Dam",
+    ),
+    MapSite(
+        name="Lake Mead",
+        kind="reservoir",
+        latitude=36.0161,
+        longitude=-114.7377,
+        description="Hoover Dam",
+    ),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class BasinMapLayers:
+    """Everything the "meet the river" map draws (design §6.1)."""
+
+    stations: pd.DataFrame
+    """The cached ``snotel_stations_huc14`` reference table."""
+
+    sites: pd.DataFrame
+    """One row per ``MAP_SITES`` entry: ``name``, ``kind``, ``latitude``,
+    ``longitude``, ``description``."""
+
+    basins: dict[str, dict[str, Any]]
+    """Upper (``"14"``) and Lower (``"15"``) basin outlines, as GeoJSON dicts."""
+
+
+def basin_map_layers(cache_dir: Path, stations: pd.DataFrame) -> BasinMapLayers:
+    """Load the map's stations, labeled sites, and basin outlines (design §6.1)."""
+    sites = pd.DataFrame(
+        [
+            {
+                "name": site.name,
+                "kind": site.kind,
+                "latitude": site.latitude,
+                "longitude": site.longitude,
+                "description": site.description,
+            }
+            for site in MAP_SITES
+        ]
+    )
+    basins = {
+        "14": load_outline(cache_dir, UPPER_BASIN_OUTLINE),
+        "15": load_outline(cache_dir, LOWER_BASIN_OUTLINE),
+    }
+    return BasinMapLayers(stations=stations, sites=sites, basins=basins)

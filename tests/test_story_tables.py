@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 
@@ -20,7 +21,9 @@ from colorado_river_viz.constants import AF_PER_MAF, YearSpan
 from colorado_river_viz.metrics.flow import water_year_totals
 from colorado_river_viz.schema import annual_frame, canonical_frame
 from colorado_river_viz.story_tables import (
+    MAP_SITES,
     annual_supply,
+    basin_map_layers,
     cisco_hydrograph,
     lees_ferry_regimes,
     paleo_supply,
@@ -437,3 +440,23 @@ def test_lees_ferry_regimes_envelope_has_a_full_day_of_water_year_range(
     assert before["day_of_water_year"].min() == 1
     assert (before["p10_cfs"] <= before["median_cfs"]).all()
     assert (before["median_cfs"] <= before["p90_cfs"]).all()
+
+
+def test_basin_map_layers_has_one_site_row_per_map_site_and_both_outlines(
+    cache_dir: Path,
+) -> None:
+    upper = {"type": "FeatureCollection", "features": [{"huc2": "14"}]}
+    lower = {"type": "FeatureCollection", "features": [{"huc2": "15"}]}
+    reference_dir = cache_dir / "reference"
+    reference_dir.mkdir(parents=True)
+    (reference_dir / "wbd_huc2_14.geojson").write_text(json.dumps(upper))
+    (reference_dir / "wbd_huc2_15.geojson").write_text(json.dumps(lower))
+    stations = _stations(["1:CO:SNTL"])
+
+    layers = basin_map_layers(cache_dir, stations)
+
+    assert len(layers.sites) == len(MAP_SITES)
+    assert set(layers.sites["kind"]) == {"gauge", "reservoir"}
+    assert layers.basins["14"] == upper
+    assert layers.basins["15"] == lower
+    assert layers.stations is stations
