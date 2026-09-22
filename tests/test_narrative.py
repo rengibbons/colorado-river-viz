@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import pandas as pd
 
+from colorado_river_viz.metrics.natural_flow_bridge import BridgeFit
 from colorado_river_viz.metrics.trend import TrendResult
 from colorado_river_viz.narrative import (
+    describe_bridge_fit,
     describe_dam_effect,
     describe_peak_swe,
     describe_reservoir_drawdown,
@@ -141,4 +143,22 @@ def test_describe_reservoir_drawdown_reports_fallen_for_a_decline() -> None:
     assert sentence == (
         "Combined Powell and Mead storage has fallen from 95% full in 2000 "
         "to 33% full today."
+    )
+
+
+def test_describe_bridge_fit_reports_the_fit_statistics() -> None:
+    fit = BridgeFit(
+        slope=1.02,
+        intercept=0.62,
+        residual_sd=0.85,
+        n=57,
+        first_year=1964,
+        last_year=2020,
+    )
+
+    sentence = describe_bridge_fit(fit)
+
+    assert sentence == (
+        "Fit on WY1964-2020 (n=57): natural = 0.62 + 1.02 x Powell unregulated "
+        "inflow (MAF); residual SD 0.85 MAF."
     )

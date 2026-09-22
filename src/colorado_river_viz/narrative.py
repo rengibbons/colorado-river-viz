@@ -9,6 +9,7 @@ from __future__ import annotations
 import pandas as pd
 
 from colorado_river_viz.constants import COMPACT_APPORTIONMENT_MAF
+from colorado_river_viz.metrics.natural_flow_bridge import BridgeFit
 from colorado_river_viz.metrics.trend import TrendResult
 
 
@@ -89,6 +90,17 @@ def describe_reservoir_drawdown(storage: pd.DataFrame, since_year: int = 2000) -
         f"Combined Powell and Mead storage has {verb} from "
         f"{start['pct_full']:.0f}% full in {since_year} to "
         f"{latest['pct_full']:.0f}% full today."
+    )
+
+
+def describe_bridge_fit(fit: BridgeFit) -> str:
+    """The natural-flow bridge's fit statistics, e.g. "Fit on WY1964-2020
+    (n=57): natural = 0.62 + 1.02 x Powell unregulated inflow (MAF); residual
+    SD 0.85 MAF."."""
+    return (
+        f"Fit on WY{fit.first_year}-{fit.last_year} (n={fit.n}): "
+        f"natural = {fit.intercept:.2f} + {fit.slope:.2f} x Powell unregulated "
+        f"inflow (MAF); residual SD {fit.residual_sd:.2f} MAF."
     )
 
 
