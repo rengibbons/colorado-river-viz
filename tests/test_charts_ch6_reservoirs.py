@@ -38,7 +38,15 @@ def test_build_reservoir_storage_has_one_trace_per_reservoir() -> None:
 def test_build_reservoir_storage_shades_the_post_2000_period() -> None:
     fig = build_reservoir_storage(_storage())
 
-    assert len(fig.layout.shapes) == 1
+    vrects = [shape for shape in fig.layout.shapes if shape.type == "rect"]
+    assert len(vrects) == 1
+
+
+def test_build_reservoir_storage_draws_a_min_power_pool_line_per_reservoir() -> None:
+    fig = build_reservoir_storage(_storage())
+
+    hlines = [shape for shape in fig.layout.shapes if shape.type == "line"]
+    assert len(hlines) == 2
 
 
 def test_build_reservoir_storage_smoke_test() -> None:

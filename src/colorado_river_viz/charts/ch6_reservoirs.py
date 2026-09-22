@@ -6,10 +6,16 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from colorado_river_viz.charts.theme import PALETTES, Theme, layout_template
-from colorado_river_viz.reservoirs import LAKE_MEAD, LAKE_POWELL
+from colorado_river_viz.reservoirs import LAKE_MEAD, LAKE_POWELL, ReservoirProfile
 
 DEFAULT_TITLE = "The basin's bank account has been drawn down since 2000"
 POST_2000_SHADE_START = "2000-01-01"
+
+
+def _min_power_pool_pct_full(reservoir: ReservoirProfile) -> float:
+    return (
+        100 * reservoir.minimum_power_pool_storage_af / reservoir.full_pool_capacity_af
+    )
 
 
 def build_reservoir_storage(
@@ -20,6 +26,10 @@ def build_reservoir_storage(
 
     ``storage`` is ``story_tables.reservoir_storage()``'s output.
     ``ft_above_min_power_pool`` is included in hover text for Powell and Mead.
+    Each reservoir's minimum power pool is also drawn as a reference line, in
+    the same storage-based percent-of-full-pool terms as ``pct_full`` (RISE
+    storage runs 2-8% above the elevation-based area-capacity tables at the
+    same elevation, so this line is an approximation, not exact).
     """
     palette = PALETTES[theme]
     fig = go.Figure()
@@ -39,23 +49,29 @@ def build_reservoir_storage(
     )
 
     for reservoir, color in (
-        (LAKE_POWELL.name, palette.high),
-        (LAKE_MEAD.name, palette.low),
+        (LAKE_POWELL, palette.high),
+        (LAKE_MEAD, palette.low),
     ):
-        rows = storage.loc[storage["reservoir"] == reservoir].sort_values("date")
+        rows = storage.loc[storage["reservoir"] == reservoir.name].sort_values("date")
         fig.add_trace(
             go.Scatter(
                 x=rows["date"],
                 y=rows["pct_full"],
                 mode="lines",
                 line={"color": color, "width": 1.5},
-                name=reservoir,
+                name=reservoir.name,
                 customdata=rows["ft_above_min_power_pool"],
                 hovertemplate=(
                     "%{x|%b %Y}: %{y:.0f}% full, %{customdata:.0f} ft above "
-                    f"min. power pool<extra>{reservoir}</extra>"
+                    f"min. power pool<extra>{reservoir.name}</extra>"
                 ),
             )
+        )
+        fig.add_hline(
+            y=_min_power_pool_pct_full(reservoir),
+            line={"color": color, "dash": "dash", "width": 1},
+            annotation_text=f"{reservoir.name} minimum power pool",
+            annotation_position="bottom right",
         )
 
     fig.add_vrect(
