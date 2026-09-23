@@ -31,11 +31,11 @@ def describe_supply_vs_compact(
 
 
 def describe_peak_swe(row: pd.Series[float]) -> str:
-    """A water year's peak-SWE headline, e.g. "2026 peaked at 9.1 in (61% of
-    median) on Mar 15."."""
+    """A water year's peak-SWE headline, e.g. "In 2026, snowpack peaked at 9.1 in
+    (61% of median) on Mar 15."."""
     peak_date = pd.Timestamp(row["peak_date"])
     return (
-        f"{int(row['water_year'])} peaked at {row['peak_swe_in']:.1f} in "
+        f"In {int(row['water_year'])}, snowpack peaked at {row['peak_swe_in']:.1f} in "
         f"({row['peak_pct_of_median']:.0f}% of the 1991-2020 median) "
         f"on {peak_date.strftime('%b %-d')}."
     )
@@ -47,8 +47,8 @@ def describe_runoff_year(row: pd.Series[float]) -> str:
     efficiency."."""
     return (
         f"{int(row['water_year'])} produced {row['apr_jul_unreg_maf']:.1f} MAF "
-        f"of spring runoff from {row['peak_swe_in']:.1f} in of peak snowpack "
-        f", only {row['runoff_efficiency_index']:.0f}% of the normal efficiency."
+        f"of spring runoff from {row['peak_swe_in']:.1f} in of peak snowpack, "
+        f"only {row['runoff_efficiency_index']:.0f}% of the normal efficiency."
     )
 
 

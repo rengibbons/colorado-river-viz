@@ -144,7 +144,7 @@ def build_sections(settings: Settings) -> list[Section]:
             "The Colorado River is promised out faster than it delivers, on a snowpack "
             "that's shrinking, melting earlier, and turning into less runoff than "
             "it used to. This is that story in the river's own data from live "
-            "government sources (USGS, Bureau of Reclamation, and NRCS SNOTEL)",
+            "government sources (USGS, Bureau of Reclamation, and NRCS SNOTEL).",
             "Seven states and Mexico share water that starts as snow in the Rocky "
             "Mountains, travels a thousand miles through two of the country's "
             "largest reservoirs (Lake Powell and Lake Mead), and almost never "
@@ -256,9 +256,8 @@ def build_sections(settings: Settings) -> list[Section]:
             "variable river and steady promises. They hold water in wet years to "
             "cover dry ones. That buffer has been drawn down for a quarter "
             "century, as demand and a drying climate have outpaced what the "
-            "river delivers. The system is turning into a bank account built for "
-            "occasional "
-            "shortfalls into one running low year after year.",
+            "river delivers. The system has gone from a bank account built for "
+            "occasional shortfalls to one running low year after year.",
             describe_reservoir_drawdown(storage),
         ],
         figures=[build_reservoir_storage(storage)],
