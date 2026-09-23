@@ -16,8 +16,7 @@ def build_kpi_panel(
     kpi_table: pd.DataFrame, theme: Theme = "light", title: str = DEFAULT_TITLE
 ) -> go.Figure:
     """One ``Indicator`` tile per row of ``story_tables.kpis()``'s output,
-    each showing its ``display`` string, ``rank_phrase``, and a partial-year
-    flag as an annotation (design §7).
+    each showing its ``display`` string and ``rank_phrase`` (design §7).
     """
     palette = PALETTES[theme]
     n = len(kpi_table)
@@ -28,7 +27,6 @@ def build_kpi_panel(
         row, col = divmod(i, PANEL_COLUMNS)
         domain_x = [col / PANEL_COLUMNS, (col + 0.95) / PANEL_COLUMNS]
         domain_y = [1 - (row + 0.9) / rows, 1 - row / rows]
-        label = kpi["label"] + (" (partial)" if kpi["is_partial"] else "")
         fig.add_trace(
             go.Indicator(
                 mode="number",
@@ -37,9 +35,9 @@ def build_kpi_panel(
                 title={
                     "font": {"size": 20},
                     "text": (
-                        f"{label}<br>"
+                        f"{kpi['label']}<br>"
                         f"<span style='font-size:0.8em;color:{palette.text_secondary}'>"
-                        f"{kpi['display']} -- {kpi['rank_phrase']}</span>"
+                        f"{kpi['display']}: {kpi['rank_phrase']}</span>"
                     ),
                 },
                 domain={"x": domain_x, "y": domain_y},

@@ -48,11 +48,11 @@ def test_build_kpi_panel_includes_an_as_of_footnote() -> None:
     assert any("As of" in a.text for a in fig.layout.annotations)
 
 
-def test_build_kpi_panel_flags_partial_tiles_in_the_title() -> None:
+def test_build_kpi_panel_omits_partial_flag_and_joins_rank_with_a_colon() -> None:
     fig = build_kpi_panel(_kpi_table())
 
-    assert "(partial)" in fig.data[0].title.text
-    assert "(partial)" not in fig.data[1].title.text
+    assert all("(partial)" not in trace.title.text for trace in fig.data)
+    assert ": 3rd lowest of 46" in fig.data[0].title.text
 
 
 def test_build_kpi_panel_smoke_test() -> None:
