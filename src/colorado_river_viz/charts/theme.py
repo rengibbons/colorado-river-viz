@@ -68,6 +68,14 @@ RESERVOIR_COLOR: dict[Theme, str] = {
 """Dataviz palette slot green, for reservoir markers on the basin map --
 distinct from the snow index stations' blue (``Palette.high``)."""
 
+RIVER_COLOR: dict[Theme, str] = {
+    "light": "#3a6ea5",
+    "dark": "#6fa8dc",
+}
+"""A muted blue for the river trace on the basin map -- distinct from the snow
+index stations' brighter blue (``Palette.high``) so the thin winding line
+doesn't compete with the round station markers."""
+
 PALETTES: dict[Theme, Palette] = {
     "light": Palette(
         surface="#fcfcfb",
@@ -164,6 +172,12 @@ def day_of_water_year_ticks() -> tuple[list[int], list[str]]:
     days = day_of_water_year(pd.DatetimeIndex(month_starts))
     labels = [pd.Timestamp(d).strftime("%b") for d in month_starts]
     return list(days), labels
+
+
+def hex_to_rgba(hex_color: str, alpha: float) -> str:
+    """Convert a ``#rrggbb`` hex color to a Plotly ``rgba(...)`` string."""
+    r, g, b = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
+    return f"rgba({r},{g},{b},{alpha})"
 
 
 def direct_label(

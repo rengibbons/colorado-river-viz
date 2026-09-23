@@ -7,6 +7,7 @@ Layout under ``cache_dir``::
     published/<series_id>.parquet   published/downloads/<original files>
     reference/snotel_stations_huc14.parquet   reference/snotel_daily_median.parquet
     reference/wbd_huc2_14.geojson   reference/wbd_huc2_15.geojson
+    reference/colorado_river_mainstem.geojson
 
 Every file is written to ``<name>.tmp`` and then renamed into place, and the
 manifest is rewritten after each series completes, so an interrupted refresh
@@ -37,6 +38,7 @@ from colorado_river_viz.catalog import (
     PublishedFormat,
     RefreshPolicy,
     RiseDailySeries,
+    RiverTrace,
     SeriesSpec,
     SnotelDailySeries,
     UsgsDailySeries,
@@ -51,6 +53,7 @@ from colorado_river_viz.errors import CacheMissError, UnexpectedSourceFormatErro
 from colorado_river_viz.http_session import DataSource, build_client
 from colorado_river_viz.published import (
     download_file,
+    fetch_river_trace_geojson,
     fetch_wbd_huc2_geojson,
     parse_meko_recon_txt,
     parse_natural_flow_xlsx,
@@ -181,6 +184,7 @@ class Fetchers:
     snotel_stations: Callable[[], pd.DataFrame]
     published: Callable[[PublishedFile, Path], pd.DataFrame]
     outline: Callable[[BasinOutline], dict[str, Any]]
+    river_trace: Callable[[], dict[str, Any]]
 
 
 def live_fetchers(settings: Settings) -> Fetchers:
@@ -215,6 +219,7 @@ def live_fetchers(settings: Settings) -> Fetchers:
         snotel_stations=lambda: fetch_huc14_snotel_stations(snotel),
         published=fetch_published,
         outline=lambda spec: fetch_wbd_huc2_geojson(published, spec.huc2),
+        river_trace=lambda: fetch_river_trace_geojson(published),
     )
 
 
@@ -228,7 +233,7 @@ def series_path(cache_dir: Path, spec: SeriesSpec) -> Path:
             return cache_dir / "raw" / spec.source / f"{spec.series_id}.parquet"
         case PublishedFile():
             return cache_dir / "published" / f"{spec.series_id}.parquet"
-        case BasinOutline():
+        case BasinOutline() | RiverTrace():
             return cache_dir / "reference" / f"{spec.series_id}.geojson"
 
 
@@ -318,6 +323,13 @@ def load_outline(cache_dir: Path, spec: BasinOutline) -> dict[str, Any]:
     path = _require(series_path(cache_dir, spec), spec.series_id)
     outline: dict[str, Any] = json.loads(path.read_text())
     return outline
+
+
+def load_river_trace(cache_dir: Path, spec: RiverTrace) -> dict[str, Any]:
+    """Load the cached river trace as a GeoJSON dict."""
+    path = _require(series_path(cache_dir, spec), spec.series_id)
+    trace: dict[str, Any] = json.loads(path.read_text())
+    return trace
 
 
 def load_snotel_stations(cache_dir: Path) -> pd.DataFrame:
@@ -411,6 +423,8 @@ def _params(spec: SeriesSpec) -> dict[str, str | int]:
             return {"url": spec.url}
         case BasinOutline():
             return {"huc2": spec.huc2}
+        case RiverTrace():
+            return {}
 
 
 # --- Refreshing ------------------------------------------------------------------
@@ -471,6 +485,8 @@ def refresh_all(
                 _refresh_published(context, spec, mode)
             case BasinOutline():
                 _refresh_outline(context, spec, mode)
+            case RiverTrace():
+                _refresh_river_trace(context, spec, mode)
     _refresh_snotel(context, snotel_specs, mode)
 
 
@@ -654,6 +670,23 @@ def _refresh_outline(
     entry = _reference_entry(spec.series_id, _params(spec), 1, context.now, spec.source)
     write_manifest(context.cache_dir, {**manifest, spec.series_id: entry})
     logger.info("%s: saved outline", spec.series_id)
+
+
+def _refresh_river_trace(
+    context: RefreshContext, spec: RiverTrace, mode: RefreshMode
+) -> None:
+    manifest = read_manifest(context.cache_dir)
+    plan = plan_reference_refresh(spec.series_id, manifest.get(spec.series_id), mode)
+    if isinstance(plan, Skip):
+        return
+    trace = context.fetchers.river_trace()
+    _write_json_atomic(trace, series_path(context.cache_dir, spec))
+    row_count = len(trace.get("features") or [])
+    entry = _reference_entry(
+        spec.series_id, _params(spec), row_count, context.now, spec.source
+    )
+    write_manifest(context.cache_dir, {**manifest, spec.series_id: entry})
+    logger.info("%s: saved %d reaches", spec.series_id, row_count)
 
 
 def _describe(plan: FullFetch | WindowFetch) -> str:

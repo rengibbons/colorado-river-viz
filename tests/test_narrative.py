@@ -27,7 +27,7 @@ def test_describe_supply_vs_compact_reports_the_post_year_mean_and_shortfall() -
     sentence = describe_supply_vs_compact(supply, since_year=2000)
 
     assert sentence == (
-        "Since WY2000, the river has averaged 12.0 MAF a year -- 27% short of "
+        "Since 2000, the river has averaged 12.0 MAF a year, 27% short of "
         "the 16.5 MAF the 1922 Compact promised."
     )
 
@@ -45,7 +45,7 @@ def test_describe_peak_swe_reports_the_value_pct_and_date() -> None:
     sentence = describe_peak_swe(row)
 
     assert sentence == (
-        "WY2026 peaked at 9.1 in (61% of the 1991-2020 median) on Mar 15."
+        "In 2026, snowpack peaked at 9.1 in (61% of the 1991-2020 median) on Mar 15."
     )
 
 
@@ -62,8 +62,8 @@ def test_describe_runoff_year_reports_volume_swe_and_efficiency_index() -> None:
     sentence = describe_runoff_year(row)
 
     assert sentence == (
-        "WY2026 produced 1.1 MAF of spring runoff from 9.1 in of peak snowpack "
-        "-- 35% of the normal efficiency."
+        "2026 produced 1.1 MAF of spring runoff from 9.1 in of peak snowpack, "
+        "only 35% of the normal efficiency."
     )
 
 
@@ -85,7 +85,7 @@ def test_describe_trend_says_fallen_for_a_negative_slope() -> None:
     sentence = describe_trend(_trend(-0.05, -13.2), "Spring runoff efficiency")
 
     assert sentence == (
-        "Spring runoff efficiency has fallen about 13% per decade since WY1981 "
+        "Spring runoff efficiency has fallen about 13% per decade since 1981 "
         "(Theil-Sen; tau=-0.26, p=0.011)."
     )
 
@@ -102,7 +102,7 @@ def test_describe_timing_trend_says_earlier_for_a_negative_slope() -> None:
     sentence = describe_timing_trend(trend, "Peak snowpack")
 
     assert sentence == (
-        "Peak snowpack has shifted 5.2 days earlier per decade since WY1981 "
+        "Peak snowpack has shifted 5.2 days earlier per decade since 1981 "
         "(Theil-Sen; tau=-0.26, p=0.011)."
     )
 
@@ -125,7 +125,7 @@ def test_describe_dam_effect_reports_before_after_means_and_pct_lower() -> None:
 
     assert sentence == (
         "Before Glen Canyon Dam, Lees Ferry's annual peak flow averaged "
-        "52,000 cfs; since 1981 it has averaged 24,000 cfs -- 54% lower."
+        "52,000 cfs. Since 1981, it has averaged 24,000 cfs, a 54% decrease."
     )
 
 
@@ -159,6 +159,6 @@ def test_describe_bridge_fit_reports_the_fit_statistics() -> None:
     sentence = describe_bridge_fit(fit)
 
     assert sentence == (
-        "Fit on WY1964-2020 (n=57): natural = 0.62 + 1.02 x Powell unregulated "
+        "Fit on 1964-2020 (n=57): natural = 0.62 + 1.02 x Powell unregulated "
         "inflow (MAF); residual SD 0.85 MAF."
     )

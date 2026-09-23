@@ -35,6 +35,7 @@ def test_fixed_series_ids_are_stable() -> None:
         "meko_2007_lees_ferry_recon",
         "wbd_huc2_14",
         "wbd_huc2_15",
+        "colorado_river_mainstem",
     ]
 
 

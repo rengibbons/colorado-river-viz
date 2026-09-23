@@ -20,6 +20,7 @@ from colorado_river_viz.cache import (
     load_annual,
     load_daily,
     load_outline,
+    load_river_trace,
     load_snotel_daily,
     load_snotel_medians,
     plan_daily_refresh,
@@ -35,6 +36,7 @@ from colorado_river_viz.catalog import (
     MEKO_RECON,
     NATURAL_FLOW,
     POWELL_UNREGULATED_INFLOW,
+    RIVER_TRACE,
     UPPER_BASIN_OUTLINE,
     BasinOutline,
     PublishedFile,
@@ -137,6 +139,13 @@ class FakeSources:
         self.calls.append((spec.series_id, DateRange(date.min, date.min)))
         return {"type": "FeatureCollection", "features": [{"huc2": spec.huc2}]}
 
+    def river_trace(self) -> dict[str, Any]:
+        self.calls.append((RIVER_TRACE.series_id, DateRange(date.min, date.min)))
+        return {
+            "type": "FeatureCollection",
+            "features": [{"type": "Feature", "geometry": {"type": "LineString"}}],
+        }
+
     def fetchers(self) -> Fetchers:
         return Fetchers(
             usgs=self.usgs,
@@ -145,6 +154,7 @@ class FakeSources:
             snotel_stations=self.stations,
             published=self.published,
             outline=self.outline,
+            river_trace=self.river_trace,
         )
 
     def windows_for(self, series_id: str) -> list[DateRange]:
@@ -349,6 +359,7 @@ def test_published_files_and_outlines_round_trip(
     assert load_outline(settings.cache_dir, UPPER_BASIN_OUTLINE)["features"] == [
         {"huc2": "14"}
     ]
+    assert len(load_river_trace(settings.cache_dir, RIVER_TRACE)["features"]) == 1
     downloads = settings.cache_dir / "published" / "downloads"
     assert (downloads / f"{NATURAL_FLOW.series_id}.original").read_text() == "verbatim"
 
