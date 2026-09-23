@@ -1,0 +1,30 @@
+Colorado River at Lees Ferry, AZ (Meko)
+Upper Colorado River Basin
+Annual (Water Year, Oct-Sep) streamflow reconstruction
+Values in acre-feet
+Recon = reconstruction
+Observed = natural flow record from US Bureau of Reclamation
+Recon Interval: 762-2005
+Observed Interval: 1906-2004
+PI: D. Meko
+Reference: 	Meko, D.M., C.A. Woodhouse, C.H. Baisan, T. Knight, J.J. Lukas,
+M.K. Hughes, and M.W. Salzer. 2007. Medieval drought in the upper Colorado
+River Basin. Geophysical Research Letters, Vol. 34, L10705
+URL: http://treeflow.info/upco/coloradoleesmeko.html
+Add'l Info: http://www.ncdc.noaa.gov/paleo/pubs/meko2007/meko2007.html
+
+==========
+Year	   Recon  Observed
+ 762  16355515     -9999
+ 763  13185239     -9999
+ 764  12138949     -9999
+ 765  12685643     -9999
+ 766  16660257     -9999
+ 767     -9999     -9999
+1999  15413953  16713900
+2000  10681849  11057654
+2001  10219732  11048316
+2002   4464679   6229694
+2003  14581652  10497431
+2004  14405387   9433491
+2005  16690946  16838684
