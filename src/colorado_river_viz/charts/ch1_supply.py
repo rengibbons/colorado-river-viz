@@ -12,7 +12,7 @@ from colorado_river_viz.charts.theme import PALETTES, Theme, layout_template
 from colorado_river_viz.constants import COMPACT_APPORTIONMENT_MAF
 
 DEFAULT_SUPPLY_TITLE = "The river has been promised more than it delivers"
-DEFAULT_PALEO_TITLE = "Eight centuries of Colorado River flow"
+DEFAULT_PALEO_TITLE = "Twelve centuries of Colorado River flow"
 
 COMPACT_ERA_START = 1906
 COMPACT_ERA_END = 1922

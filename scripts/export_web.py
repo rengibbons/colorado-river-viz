@@ -70,7 +70,7 @@ FRAGMENT_CLASS = "crv-story"
 
 # Caps each chart's on-page width -- tune this if the story column's own
 # width changes (e.g. a different theme, or the site's sidebar width).
-FIGURE_MAX_WIDTH_PX = 670
+FIGURE_MAX_WIDTH_PX = 900
 
 FRAGMENT_TEMPLATE = """<script src="{plotly_cdn}"></script>
 <style>
@@ -141,16 +141,17 @@ def build_sections(settings: Settings) -> list[Section]:
     overview = Section(
         heading=None,
         paragraphs=[
+            "The Colorado River is promised out faster than it delivers, on a snowpack "
+            "that's shrinking, melting earlier, and turning into less runoff than "
+            "it used to. This is that story in the river's own data from live "
+            "government sources (USGS, Bureau of Reclamation, and NRCS SNOTEL)",
             "Seven states and Mexico share water that starts as snow in the Rocky "
             "Mountains, travels a thousand miles through two of the country's "
-            "largest reservoirs, and has been promised out faster than the river "
-            "delivers it.",
-            "The Colorado River drains the Upper Basin's high mountain snowpack, "
-            "through Cisco and Lees Ferry, into the two great reservoirs -- Lake "
-            "Powell and Lake Mead -- that store it for the Lower Basin and Mexico. "
+            "largest reservoirs (Lake Powell and Lake Mead), and almost never "
+            "reaches the sea in the modern era.",
             "The 54 SNOTEL stations that make up this story's snow index (out of "
-            "137 in the basin) sit filled in below; the rest are shown hollow for "
-            "context.",
+            "137 in the basin) are marked on the map, as are the gauges that "
+            "measure the river's flow at Cisco and Lees Ferry.",
         ],
         figures=[build_basin_map(map_layers)],
     )
@@ -158,14 +159,16 @@ def build_sections(settings: Settings) -> list[Section]:
     supply = annual_supply(settings.cache_dir)
     paleo = paleo_supply(settings.cache_dir)
     ch1 = Section(
-        heading="1 · Promised more than it has",
+        heading="Promised more than it has",
         paragraphs=[
             "In 1922, seven states divided the Colorado River's flow before anyone "
             "had measured it through a full wet-dry cycle. They allocated 16.5 "
-            "million acre-feet a year -- 7.5 MAF each to the upper and lower "
+            "million acre-feet a year, 7.5 MAF each to the upper and lower "
             "basins, plus 1.5 MAF promised to Mexico in 1944. The river has rarely "
-            "delivered that much.",
+            "delivered that much water.",
             describe_supply_vs_compact(supply),
+            "Flow approximations from tree rings show that the river today runs as "
+            "low as it ever has in the past 1,200 years.",
         ],
         figures=[build_supply_vs_compact(supply), build_paleo_context(paleo, supply)],
     )
@@ -175,13 +178,15 @@ def build_sections(settings: Settings) -> list[Section]:
     snow_year = snow_annual(settings.cache_dir, stations, snow_daily)
     latest_snow = snow_year.dropna(subset=["peak_swe_in"]).iloc[-1]
     ch2 = Section(
-        heading="2 · It starts as snow",
+        heading="It starts as snow",
         paragraphs=[
             "Every drop of Colorado River water begins as snow in the mountains of "
             "Colorado, Wyoming, Utah, and New Mexico. A fixed set of 54 "
             "long-record SNOTEL stations tracks the basin's snow water equivalent "
-            "(SWE) -- the depth of water the snowpack would produce if it melted "
-            "all at once -- every winter back to the early 1980s.",
+            "(SWE) every winter back to the early 1980s. "
+            "SWE is the depth of water the snowpack would produce if it melted "
+            "all at once. The image shows three driest and three wettest years on "
+            "record, plus the 1991-2020 median.",
             describe_peak_swe(latest_snow),
         ],
         figures=[
@@ -196,13 +201,13 @@ def build_sections(settings: Settings) -> list[Section]:
         runoff["water_year"], runoff["runoff_efficiency"]
     )
     ch3 = Section(
-        heading="3 · Same snow, less river",
+        heading="Same snow, less river",
         paragraphs=[
             "A given amount of mountain snowpack no longer turns into the same "
             "amount of spring runoff it once did. Warmer soils and thirstier "
             "vegetation intercept more of the melt before it reaches a gauge, so "
             "the relationship between peak SWE and the Apr-Jul runoff pulse at "
-            "Lake Powell has been sliding for decades.",
+            "Lake Powell has been in decline for decades.",
             describe_runoff_year(latest_runoff),
             describe_trend(efficiency_trend, "Spring runoff efficiency"),
         ],
@@ -217,11 +222,11 @@ def build_sections(settings: Settings) -> list[Section]:
         ],
     )
     ch4 = Section(
-        heading="4 · Earlier and faster",
+        heading="Earlier and faster",
         paragraphs=[
             "Snowmelt no longer waits for summer. Warmer springs pull the peak "
             "snowpack, the melt-out, and the resulting streamflow earlier in the "
-            "year than they ran a century ago -- and once the water starts "
+            "year than they ran a century ago. And once the water starts "
             "moving, it moves through faster.",
             describe_timing_trend(cov_trend, "The Cisco half-flow date"),
         ],
@@ -230,7 +235,7 @@ def build_sections(settings: Settings) -> list[Section]:
 
     regimes = lees_ferry_regimes(settings.cache_dir)
     ch5 = Section(
-        heading="5 · Dams flatten the river",
+        heading="Dams flatten the river",
         paragraphs=[
             "Before Glen Canyon Dam, Lees Ferry's flow followed the snowmelt: a "
             "sharp spring peak, then a long summer and winter recession. The dam "
@@ -245,13 +250,14 @@ def build_sections(settings: Settings) -> list[Section]:
 
     storage = reservoir_storage(settings.cache_dir)
     ch6 = Section(
-        heading="6 · The bank account",
+        heading="The bank account",
         paragraphs=[
             "Lake Powell and Lake Mead exist to smooth the difference between a "
-            "variable river and steady promises: they hold water in wet years to "
+            "variable river and steady promises. They hold water in wet years to "
             "cover dry ones. That buffer has been drawn down for a quarter "
             "century, as demand and a drying climate have outpaced what the "
-            "river delivers -- turning a bank account built for occasional "
+            "river delivers. The system is turning into a bank account built for "
+            "occasional "
             "shortfalls into one running low year after year.",
             describe_reservoir_drawdown(storage),
         ],
