@@ -249,7 +249,13 @@ def test_annual_supply_estimates_missing_years_and_keeps_published_ones(
     natural = annual_frame(
         NATURAL_FLOW.series_id,
         published_years["water_year"].tolist(),
-        (published_years["total_maf"] * AF_PER_MAF).tolist(),
+        (
+            (
+                published_years["total_maf"]
+                + 0.1 * (-1.0) ** published_years["water_year"]
+            )
+            * AF_PER_MAF
+        ).tolist(),
         ["final"] * len(published_years),
     )
     write_parquet_atomic(
