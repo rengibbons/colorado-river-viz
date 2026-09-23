@@ -432,10 +432,15 @@ def test_basin_map_layers_has_one_site_row_per_map_site_and_both_outlines(
 ) -> None:
     upper = {"type": "FeatureCollection", "features": [{"huc2": "14"}]}
     lower = {"type": "FeatureCollection", "features": [{"huc2": "15"}]}
+    river = {
+        "type": "FeatureCollection",
+        "features": [{"type": "Feature", "geometry": {"type": "LineString"}}],
+    }
     reference_dir = cache_dir / "reference"
     reference_dir.mkdir(parents=True)
     (reference_dir / "wbd_huc2_14.geojson").write_text(json.dumps(upper))
     (reference_dir / "wbd_huc2_15.geojson").write_text(json.dumps(lower))
+    (reference_dir / "colorado_river_mainstem.geojson").write_text(json.dumps(river))
     stations = _stations(["1:CO:SNTL"])
 
     layers = basin_map_layers(cache_dir, stations)
@@ -444,6 +449,7 @@ def test_basin_map_layers_has_one_site_row_per_map_site_and_both_outlines(
     assert set(layers.sites["kind"]) == {"gauge", "reservoir"}
     assert layers.basins["14"] == upper
     assert layers.basins["15"] == lower
+    assert layers.river == river
     assert layers.stations is stations
 
 

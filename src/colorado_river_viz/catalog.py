@@ -21,6 +21,7 @@ from colorado_river_viz.published import (
     MEKO_RECON_URL,
     NATURAL_FLOW_SERIES_ID,
     NATURAL_FLOW_URL,
+    RIVER_TRACE_SERIES_ID,
 )
 from colorado_river_viz.reservoirs import LAKE_MEAD, LAKE_POWELL
 from colorado_river_viz.schema import Unit
@@ -87,8 +88,20 @@ class BasinOutline:
     refresh_policy: RefreshPolicy = "on_full_refresh"
 
 
+@dataclass(frozen=True, slots=True)
+class RiverTrace:
+    series_id: str
+    source: DataSource = DataSource.PUBLISHED
+    refresh_policy: RefreshPolicy = "on_full_refresh"
+
+
 SeriesSpec = (
-    UsgsDailySeries | RiseDailySeries | SnotelDailySeries | PublishedFile | BasinOutline
+    UsgsDailySeries
+    | RiseDailySeries
+    | SnotelDailySeries
+    | PublishedFile
+    | BasinOutline
+    | RiverTrace
 )
 DailySeriesSpec = UsgsDailySeries | RiseDailySeries | SnotelDailySeries
 
@@ -135,6 +148,7 @@ MEKO_RECON = PublishedFile(
 )
 UPPER_BASIN_OUTLINE = BasinOutline(series_id="wbd_huc2_14", huc2="14")
 LOWER_BASIN_OUTLINE = BasinOutline(series_id="wbd_huc2_15", huc2="15")
+RIVER_TRACE = RiverTrace(series_id=RIVER_TRACE_SERIES_ID)
 
 FIXED_SERIES: tuple[SeriesSpec, ...] = (
     CISCO,
@@ -148,6 +162,7 @@ FIXED_SERIES: tuple[SeriesSpec, ...] = (
     MEKO_RECON,
     UPPER_BASIN_OUTLINE,
     LOWER_BASIN_OUTLINE,
+    RIVER_TRACE,
 )
 """Every story series except the SNOTEL index stations."""
 

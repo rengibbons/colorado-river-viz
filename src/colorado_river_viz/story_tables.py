@@ -23,6 +23,7 @@ from colorado_river_viz.cache import (
     load_annual,
     load_daily,
     load_outline,
+    load_river_trace,
     load_snotel_daily,
     load_snotel_medians,
 )
@@ -37,6 +38,7 @@ from colorado_river_viz.catalog import (
     POWELL_ELEVATION,
     POWELL_STORAGE,
     POWELL_UNREGULATED_INFLOW,
+    RIVER_TRACE,
     UPPER_BASIN_OUTLINE,
     snotel_index_series,
 )
@@ -426,9 +428,14 @@ class BasinMapLayers:
     basins: dict[str, dict[str, Any]]
     """Upper (``"14"``) and Lower (``"15"``) basin outlines, as GeoJSON dicts."""
 
+    river: dict[str, Any]
+    """The Colorado River mainstem trace, as a GeoJSON ``FeatureCollection`` of
+    ``LineString`` reaches."""
+
 
 def basin_map_layers(cache_dir: Path, stations: pd.DataFrame) -> BasinMapLayers:
-    """Load the map's stations, labeled sites, and basin outlines (design §6.1)."""
+    """Load the map's stations, labeled sites, basin outlines, and river trace
+    (design §6.1)."""
     sites = pd.DataFrame(
         [
             {
@@ -445,7 +452,8 @@ def basin_map_layers(cache_dir: Path, stations: pd.DataFrame) -> BasinMapLayers:
         "14": load_outline(cache_dir, UPPER_BASIN_OUTLINE),
         "15": load_outline(cache_dir, LOWER_BASIN_OUTLINE),
     }
-    return BasinMapLayers(stations=stations, sites=sites, basins=basins)
+    river = load_river_trace(cache_dir, RIVER_TRACE)
+    return BasinMapLayers(stations=stations, sites=sites, basins=basins, river=river)
 
 
 def _ordinal(n: int) -> str:

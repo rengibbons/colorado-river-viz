@@ -31,9 +31,19 @@ MEKO_RECON_URL = "https://www.treeflow.info/sites/default/files/coloradoleesmeko
 WBD_HUC2_QUERY_URL = (
     "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/1/query"
 )
+RIVER_TRACE_QUERY_URL = (
+    "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/"
+    "USA_Rivers_and_Streams/FeatureServer/0/query"
+)
 
 NATURAL_FLOW_SERIES_ID = "lees_ferry_natural_flow_wy"
 MEKO_RECON_SERIES_ID = "meko_2007_lees_ferry_recon"
+RIVER_TRACE_SERIES_ID = "colorado_river_mainstem"
+
+# The basin's own bounding box (roughly 31-41N, 105-115W), used to keep only
+# the right "Colorado River" -- Esri's nationwide layer also carries e.g. the
+# one through Texas.
+_RIVER_TRACE_BASIN_ENVELOPE = "-115,31,-105,41"
 
 _NATURAL_FLOW_SHEET = "Water Year"
 _NATURAL_FLOW_TITLE = "WY Lees Ferry Natural Flow"
@@ -146,4 +156,36 @@ def fetch_wbd_huc2_geojson(client: HttpClient, huc2: str) -> dict[str, Any]:
     features = geojson.get("features") or []
     if len(features) != 1 or features[0]["properties"].get("huc2") != huc2:
         raise UnexpectedSourceFormatError(f"WBD HUC2 {huc2}: expected one feature")
+    return geojson
+
+
+def fetch_river_trace_geojson(client: HttpClient) -> dict[str, Any]:
+    """Fetch the Colorado River's mainstem centerline as a GeoJSON FeatureCollection.
+
+    The source layer represents the river as many separate reaches (broken at
+    state lines and other cartographic seams), so this returns one LineString
+    feature per reach rather than a single continuous line.
+    """
+    geojson: dict[str, Any] = get_json(
+        client,
+        RIVER_TRACE_QUERY_URL,
+        {
+            "where": "Name='Colorado River'",
+            "geometry": _RIVER_TRACE_BASIN_ENVELOPE,
+            "geometryType": "esriGeometryEnvelope",
+            "spatialRel": "esriSpatialRelIntersects",
+            "inSR": "4326",
+            "outFields": "Name",
+            "returnGeometry": "true",
+            "outSR": "4326",
+            "f": "geojson",
+        },
+    )
+    features = geojson.get("features") or []
+    if not features or any(
+        feature["geometry"]["type"] != "LineString" for feature in features
+    ):
+        raise UnexpectedSourceFormatError(
+            "Colorado River trace: expected only LineString features"
+        )
     return geojson
