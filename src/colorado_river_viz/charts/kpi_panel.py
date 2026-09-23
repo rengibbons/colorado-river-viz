@@ -8,7 +8,8 @@ import plotly.graph_objects as go
 from colorado_river_viz.charts.theme import PALETTES, Theme, layout_template
 
 DEFAULT_TITLE = "2026 at a glance"
-PANEL_COLUMNS = 3
+PANEL_COLUMNS = 2
+PANEL_ROW_HEIGHT_PX = 200
 
 
 def build_kpi_panel(
@@ -32,13 +33,14 @@ def build_kpi_panel(
             go.Indicator(
                 mode="number",
                 value=float(kpi["value"]),
-                number={"suffix": f" {kpi['unit']}", "font": {"size": 28}},
+                number={"suffix": f" {kpi['unit']}", "font": {"size": 40}},
                 title={
+                    "font": {"size": 20},
                     "text": (
                         f"{label}<br>"
-                        f"<span style='font-size:0.7em;color:{palette.text_secondary}'>"
+                        f"<span style='font-size:0.8em;color:{palette.text_secondary}'>"
                         f"{kpi['display']} -- {kpi['rank_phrase']}</span>"
-                    )
+                    ),
                 },
                 domain={"x": domain_x, "y": domain_y},
             )
@@ -48,6 +50,7 @@ def build_kpi_panel(
     fig.update_layout(
         template=layout_template(theme),
         title=title,
+        height=rows * PANEL_ROW_HEIGHT_PX + 120,
         annotations=[
             {
                 "text": f"As of {as_of}",
